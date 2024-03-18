@@ -18,3 +18,7 @@ Breve descrição do projeto.
 2.
 
 ## Licença
+
+## Referências
+
+https://ieeexplore.ieee.org/document/9395587
