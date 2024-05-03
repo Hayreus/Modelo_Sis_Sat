@@ -1,4 +1,5 @@
 ##POSIÇÃO GLOBAL
+import math
 
 def calcular_psi(R, h, eta):
     termo1 = 2 * R * (math.pi / 2)
