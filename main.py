@@ -9,8 +9,8 @@ v = 7.46                    # Velocidade orbital em km/s
 F_c = 20                    # Frequencia de centro em Ghz
 W = 28                      # Largura de banda em MHz
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
-micro = -2.6                # Parâmetro de desvanecimento da chuva em dB
-sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB
+micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
+sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
 N_0 = -172                  # Densidade espetral do ruído em dBw/Hz
 M = 7                       # Número de feixes de antenas
 g_t = 52.1                  # Ganho da antena do satélite em dB
@@ -23,20 +23,32 @@ P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 
 
-# Funções dos algoritmos
+# Funções e equações dos algoritmos 1, 2 e 3
 # Algoritmo 1
-def Algorithm1(epsilon, L, P_eq):
+def optimize_beam_power(epsilon, L, P_eq):
+    # Parâmetros iniciais
+    num_iterations = len(L)  # Determina o número máximo de iterações com base no tamanho de L
+    p = [None] * num_iterations
+    x = [None] * num_iterations
+    
+    # Configuração inicial
     i = 0
-    p_prev = P_eq
-    while True:
-        p_prev = P_eq
-        x_i = Algorithm2(p_prev)
-        p_i = Algorithm3(x_i)
-        p_star = p_i
-        x_star = x_i
-        if abs(eta(x_i, p_i) - eta(x_prev, p_prev)) >= epsilon:
+    p[i] = P_eq
+    
+    while i < num_iterations - 1:  # Usar 'num_iterations - 1' para garantir que não ultrapasse o índice máximo
+        # Atualiza os valores de p e x
+        x[i] = Algorithm2(p[i])  # Encontra o beam assignment com p fixo
+        p[i + 1] = Algorithm3(x[i])    # Encontra a alocação de potência com x fixo
+        
+        # Verifica o critério de convergência
+        if abs(eta(x[i], p[i]) - eta(x[i - 1], p[i - 1])) >= epsilon:  # Usar 'i - 1' para comparar com a iteração anterior
             break
-    return p_star, x_star
+    
+        # Atualiza o índice para o próximo loop
+        i += 1
+    
+    # Retorna as matrizes p* e x*
+    return p[i], x[i]
 
 # Algoritmo 2
 def Algorithm2(p):
@@ -50,7 +62,7 @@ def Algorithm2(p):
 # Eq. 12
 def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
     # Calcula p_km usando a fórmula fornecida
-    P_eq = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
+    Peq = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
     
     return P_eq
 
@@ -84,7 +96,7 @@ def constraint7(vars):
 
 # Eq. 15
 def calcular_eta(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
-    numerator = sum(sum(W * math.log2(1 + (p[m] * gt * g_ru * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W)) * X[k][m] for m in range(M)) for k in range(K))
+    numerator = sum(sum(W * math.log2(1 + (p[m] * g_t * g_ru * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W)) * X[k][m] for m in range(M)) for k in range(K))
     denominator = P_c + (1 / rho) * sum(p)
     
     eta = numerator / denominator
@@ -310,7 +322,7 @@ def constraint_received_power(p, P_r, g_s, g_b, L_b):
 
 def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s, g_b, L_b):
     initial_guess = [0.5] * len(C_tilde_p)
-    bounds = [(0, P_f)] * len(C_tilde_p)
+    bounds = [(0, Pf)] * len(C_tilde_p)
 
     constraints = [{'type': 'ineq', 'fun': constraint_total_power, 'args': (P_T,)},
                    {'type': 'ineq', 'fun': constraint_individual_power, 'args': (P_f,)},
@@ -320,3 +332,6 @@ def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s
                       bounds=bounds, constraints=constraints)
 
     return result
+
+
+## organizar equações do algoritmo 1
