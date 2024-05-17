@@ -66,12 +66,12 @@ def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
     Calcula a potência de transmissão p_{k,m} para cada combinação de feixe k e ponto de acesso m com base nas potências máximas disponíveis e nas restrições de potência do sistema.
 
     Parâmetros:
-        Pf (float): Potência máxima permitida para a transmissão.
-        PT (float): Potência total disponível para alocação entre todos os feixes.
-        Pr (float): Potência total disponível para recepção.
-        gs (float): Ganho do receptor.
-        gb (float): Ganho da unidade remota.
-        Lb (float): Perda do caminho entre a unidade remota e o receptor.
+        P_f (float): Potência máxima permitida para a transmissão.
+        P_T (float): Potência total disponível para alocação entre todos os feixes.
+        P_r (float): Potência total disponível para recepção.
+        g_s (float): Ganho do receptor.
+        g_b (float): Ganho da unidade remota.
+        L_b (float): Perda do caminho entre a unidade remota e o receptor.
         M (int): Número total de feixes disponíveis para alocação.
 
     Retorna:
