@@ -103,22 +103,11 @@ def constraint7(vars, K, M):
     return left_side - right_side
 
 # Eq. 15
-def calculate_eta(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
-    numerator = 0
-    denominator = P_c
-    
-    i = 0
-    K = len(X)
-    M = len(X[0])
-    
-    for k in range(K):
-        for m in range(M):
-            numerator += W * np.log2(1 + (p[m] * g_t * g_ru[k] * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W)) * X[k][m]
-            denominator += p[m]
-    
+def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
+    numerator = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
+    denominator = P_c + (1 / rho) * sum(p)
     eta = numerator / denominator
-
-    return eta
+    return -eta
 
 # Eq. 16
 def calcular_I_i(X, p, g_s, g_ru, L):
@@ -226,19 +215,10 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     return I_d
 
 # Eq. 22 (restrições)
-def objective_function(p, *args):
-    W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho = args
-    
-    # Calcula a soma ponderada das taxas de transmissão de todos os feixes ativos
+def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
     numerator = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
-    
-    # Calcula o denominador da eficiência energética
     denominator = P_c + (1 / rho) * sum(p)
-    
-    # Calcula a eficiência energética como a razão entre o numerador e o denominador
     eta = numerator / denominator
-    
-    # Otimização do problema: maximizar a eficiência energética (equivalente a minimizar o negativo da função objetivo)
     return -eta
 
 def constraint1(p, P_T):
