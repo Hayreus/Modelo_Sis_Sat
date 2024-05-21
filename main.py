@@ -221,17 +221,11 @@ def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
     eta = numerator / denominator
     return -eta
 
-def constraint1(p, P_T):
-    # Restrição: a soma das potências dos feixes ativos não pode exceder a potência total de transmissão PT
-    return sum(p) - P_T
-
-def constraint2(p, P_f):
-    # Restrição: cada potência do feixe não pode exceder a potência máxima permitida Pf
-    return [P_f - p_k for p_k in p]
-
-def constraint3(p, P_r, g_s, g_b, L_b):
-    # Restrição: a soma das potências dos feixes ativos não pode exceder a potência máxima permitida pelo receptor
-    return P_r / (g_s * g_b * L_b) - sum(p)
+def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
+    numerator = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
+    denominator = P_c + (1 / rho) * sum(p)
+    eta = numerator / denominator
+    return -eta
 
 def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
     # Número de feixes ativos
@@ -240,10 +234,20 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
     # Chute inicial: igualmente distribuído entre os feixes ativos
     initial_guess = [P_T / num_feixes] * num_feixes
     
-    # Definindo as restrições do problema de otimização
-    constraints = [{'type': 'ineq', 'fun': constraint1, 'args': (P_T,)},
-                   {'type': 'ineq', 'fun': constraint2, 'args': (P_f,)},
-                   {'type': 'ineq', 'fun': constraint3, 'args': (P_r, g_s, g_b, L_b)}]
+    #definindo as restrições do problema de otimização
+    def constraint_total_power(p):
+        return sum(p) - P_T
+
+    def constraint_individual_power(p):
+        return p - P_f
+
+    def constraint_received_power(p):
+        return sum(p) - P_r / (g_s * g_b * L_b)
+                
+    # Lista de restrições
+    constraints = [{'type': 'ineq', 'fun': constraint_total_power},
+                   {'type': 'ineq', 'fun': constraint_individual_power},
+                   {'type': 'ineq', 'fun': constraint_received_power}]
     
     # Chamada para o otimizador
     result = minimize(objective_function, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
@@ -324,19 +328,23 @@ def f2(I_i, I_d, N_0, W):
     return f2_values
 
 # Eq.29 (restrições)
-def objective_function(p, C_tilde_p, D_p, lambda_star):
-    return -(C_tilde_p - lambda_star * D_p)
-
-def constraint_total_power(p, P_T):
-    return sum(p) - P_T
-
-def constraint_individual_power(p, P_f):
-    return p - P_f
-
-def constraint_received_power(p, P_r, g_s, g_b, L_b):
-    return sum(p) - P_r / (g_s * g_b * L_b)
-
-def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s, g_b, L_b):
+def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
+    # Número de feixes ativos
+    num_feixes = len(g_t)
+    
+    # Chute inicial: igualmente distribuído entre os feixes ativos
+    initial_guess = [P_T / num_feixes] * num_feixes
+    
+    # Definindo as restrições do problema de otimização
+    constraints = [{'type': 'ineq', 'fun': constraint_total_power, 'args': (P_T,)},
+                   {'type': 'ineq', 'fun': constraint_individual_power, 'args': (P_f,)},
+                   {'type': 'ineq', 'fun': constraint_received_power, 'args': (P_r, g_s, g_b, L_b)}]
+    
+    # Chamada para o otimizador
+    result = minimize(objective_function, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
+                      constraints=constraints)
+    
+    return result
     initial_guess = [0.5] * len(C_tilde_p)
     bounds = [(0, Pf)] * len(C_tilde_p)
 
