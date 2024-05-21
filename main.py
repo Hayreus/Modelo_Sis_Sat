@@ -354,17 +354,6 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
                       constraints=constraints)
     
     return result
-    initial_guess = [0.5] * len(C_tilde_p)
-    bounds = [(0, Pf)] * len(C_tilde_p)
-
-    constraints = [{'type': 'ineq', 'fun': constraint_total_power, 'args': (P_T,)},
-                   {'type': 'ineq', 'fun': constraint_individual_power, 'args': (P_f,)},
-                   {'type': 'ineq', 'fun': constraint_received_power, 'args': (P_r, g_s, g_b, L_b)}]
-
-    result = minimize(objective_function, initial_guess, args=(C_tilde_p, D_p, lambda_star),
-                      bounds=bounds, constraints=constraints)
-
-    return result
 
 
 # Algoritmo 3
