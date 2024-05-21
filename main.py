@@ -62,23 +62,8 @@ def Algorithm2(p):
 # Equações do algoritmo 2
 # Eq. 12
 def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
-    """
-    Calcula a potência de transmissão p_{k,m} para cada combinação de feixe k e ponto de acesso m com base nas potências máximas disponíveis e nas restrições de potência do sistema.
-
-    Parâmetros:
-        P_f (float): Potência máxima permitida para a transmissão.
-        P_T (float): Potência total disponível para alocação entre todos os feixes.
-        P_r (float): Potência total disponível para recepção.
-        g_s (float): Ganho do receptor.
-        g_b (float): Ganho da unidade remota.
-        L_b (float): Perda do caminho entre a unidade remota e o receptor.
-        M (int): Número total de feixes disponíveis para alocação.
-
-    Retorna:
-        dict: Um dicionário contendo as potências de transmissão p_{k,m} para cada combinação de feixe k e ponto de acesso m.
-    """
     p_km = {}
-    
+
     # Para cada combinação de feixe k e ponto de acesso m
     for k in range(1, K + 1):
         for m in range(1, M + 1):
@@ -88,12 +73,13 @@ def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
     return p_km
 
 # Eq. 13
-def constraint3(vars, P_s, P_b, L_b, P_r):
-    X = vars[:K*M].reshape((K, M))
-    p = vars[K*M:]
-    
+def constraint3(vars, P_s, P_b, L_b, P_r, g_s, g_b):
+    K, M = len(P_s), len(P_b) 
+    X = np.array(vars[:K * M]).reshape((K, M))
+    p = np.array(vars[K * M:])
+
     # Calcula o lado esquerdo da desigualdade
-    left_side = sum(sum(X[k][m] * p[k*M + m] for m in range(M)) for k in range(K))
+    left_side = sum(sum(X[k][m] * p[k * M + m] for m in range(M)) for k in range(K))
     
     # Calcula o lado direito da desigualdade
     right_side = P_r / (g_s * g_b * L_b)
@@ -102,12 +88,13 @@ def constraint3(vars, P_s, P_b, L_b, P_r):
     return left_side - right_side
 
 # Eq. 14
-def constraint7(vars):
-    X = vars[:K*M].reshape((K, M))
-    p = vars[K*M:]
+def constraint7(vars, K, M):
+    # Extrair X e p do vetor vars
+    X = np.array(vars[:K * M]).reshape((K, M))
+    p = np.array(vars[K * M:K * M + M])
     
     # Calcula o lado esquerdo da igualdade
-    left_side = sum(sum(X[k][m] * p[k*M + m] for m in range(M)) for k in range(K))
+    left_side = sum(sum(X[k, m] * p[m] for m in range(M)) for k in range(K))
     
     # Calcula o lado direito da igualdade
     right_side = sum(p)
@@ -116,43 +103,59 @@ def constraint7(vars):
     return left_side - right_side
 
 # Eq. 15
-def calcular_eta(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
-    numerator = sum(sum(W * math.log2(1 + (p[m] * g_t * g_ru * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W)) * X[k][m] for m in range(M)) for k in range(K))
-    denominator = P_c + (1 / rho) * sum(p)
+def calculate_eta(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
+    numerator = 0
+    denominator = P_c
+    
+    i = 0
+    K = len(X)
+    M = len(X[0])
+    
+    for k in range(K):
+        for m in range(M):
+            numerator += W * np.log2(1 + (p[m] * g_t * g_ru[k] * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W)) * X[k][m]
+            denominator += p[m]
     
     eta = numerator / denominator
-    
+
     return eta
 
 # Eq. 16
 def calcular_I_i(X, p, g_s, g_ru, L):
-    I_i = [[0 for _ in range(M)] for _ in range(K)]
-    
-    for k in range(K):
-        for m in range(M):
-            # Calcula a interferência interna para cada par (k, m)
-            I_i[k][m] = g_s * g_ru * L[k] * sum(p[m_prime] for m_prime in range(M) if m_prime != m)
+    K, M = len(X), len(p)
+    I_i = [0] * M
+
+    for m in range(M):
+        for m_prime in range(M):
+            if m_prime != m:
+                I_i[m] += p[m_prime]
+        I_i[m] *= g_s * g_ru * L[m]
     
     return I_i
 
 # Eq. 17
-def calcular_q_km(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
-    q = [[0 for _ in range(M)] for _ in range(K)]
+def calcular_q(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
+
+    K, M = X.shape
+    q = np.zeros((K, M))
+    
+    # Calcula o denominador da equação
+    denominator = P_c + (1 / rho) * np.sum(p)
     
     for k in range(K):
         for m in range(M):
-            # Calcula o numerador do termo q_km
-            numerator = W * math.log2(1 + (p[m] * gt * g_ru * L[k]) / (I_i[k][m] + I_d[k][m] + N_0 * W))
+            # Calcula o numerador da equação
+            numerator = p[m] * g_t * g_ru[k] * L[k]
             
-            # Calcula o denominador do termo q_km
-            denominator = Pc + (1 / rho) * sum(p)
+            # Calcula o termo de interferência total
+            interference = I_i[k][m] + I_d[k][m] + N_0 * W
             
-            # Calcula o termo q_km
-            q[k][m] = numerator / denominator
+            # Calcula q_{k,m}
+            q[k][m] = (W / denominator) * np.log2(1 + numerator / interference)
     
     return q
 
-# Eq. 18
+# Eq. 18 (restrições)
 def objective_function(X, q):
     return -sum(sum(X[k][m] * q[k][m] for m in range(M)) for k in range(K))
 
@@ -202,8 +205,15 @@ def Algorithm3(x):
 # Funções das Equações para algoritmo 3
 # Eq. 19
 def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
+
+    K = len(p)  # Número de feixes
+    
     # Calcula o numerador da eficiência energética
-    C_p = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
+    C_p = 0
+    for k in range(K):
+        numerator = p[k] * g_t * g_ru[k] * L[k]
+        denominator = I_i[k] + I_d[k] + N_0 * W
+        C_p += W * math.log2(1 + numerator / denominator)
     
     # Calcula o denominador da eficiência energética
     D_p = P_c + (1 / rho) * sum(p)
@@ -226,7 +236,7 @@ def calcular_I_i(p, g_s, g_ru, L):
 # Eq. 21
 def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     I_d = [0] * len(p)
-    
+
     for k in range(len(p)):
         # Calcula o termo sinc(f_k * T_s)
         sinc_term = math.sin(math.pi * f_k[k] * T_s) / (math.pi * f_k[k] * T_s) if f_k[k] * T_s != 0 else 1
@@ -236,7 +246,7 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     
     return I_d
 
-# Eq. 22
+# Eq. 22 (restrições)
 def objective_function(p, *args):
     W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho = args
     
@@ -295,40 +305,66 @@ def calcular_C_p_estrela(W, R_p_estrela):
     return C_p_estrela
 
 # Eq.25
-def calcular_R_p_til(k, p, p_0, f_1, f_2, grad_f2_p0):
-    # Calcula f2(p0)
-    f2_p0 = f_2(p_0)
+def grad_f2(I_i, I_d, N_0, W):
+
+    K = len(I_i)  # Número de feixes
+    grad_values = np.zeros(K)
     
-    # Calcula o gradiente de f2(p0)
-    grad_f2_p0_T = grad_f2_p0(p_0)
+    for k in range(K):
+        interference = I_i[k] + I_d[k] + N_0 * W
+        grad_values[k] = 1 / (np.log(2) * interference)  # Derivada de log2(interference)
     
-    # Calcula o termo dentro dos parênteses de f2(p_0) - grad(f2(p_0))^T * (p - p_0)
-    termo_dentro_parenteses = f2_p0 - np.dot(grad_f2_p0_T, p - p_0)
+    return grad_values
+
+
+def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
+ 
+    K = len(p)  # Número de feixes
+    tilde_R = np.zeros(K)
     
-    # Calcula f1(p) - (f2(p0) - grad(f2(p0))^T * (p - p0))
-    tilde_R_k_p = f1(p) - termo_dentro_parenteses
+    f1_values = f1(p, g_t, g_ru, L, I_i, I_d, N_0, W)
+    f2_values = f2(I_i, I_d, N_0, W)
+    grad_f2_values = grad_f2(I_i, I_d, N_0, W)
     
-    return tilde_R_k_p
+    for k in range(K):
+        gradient_term = grad_f2_values[k] * (p[k] - p_0[k])
+        tilde_R[k] = f1_values[k] - (f2_values[k] - gradient_term)
+    
+    return tilde_R
 
 # Eq.26
 def calcular_C_p(p, f_1, f_2, W):
-    # Calcula a soma ponderada das diferenças entre f1(p) e f2(p) para todos os feixes ativos
-    C_p = sum(W * (f_1(p_k) - f_2(p_k)) for p_k in p)
+
+    C_p = 0
+    for k in range(len(p)):
+        p_k = p[k]
+        C_p += W * (f_1(p_k) - f_2(p_k))
     return C_p
 
 # Eq.27
-def calcular_f1(p, g_t, g_ru, L, I_i, I_d, N_0, W):
-    # Calcula o valor de f1(p) para cada feixe
-    f1_p = [np.log2(p_k * g_t * g_ru_k * L_k + I_i_k + I_d_k + N_0 * W) for p_k, g_ru_k, L_k, I_i_k, I_d_k in zip(p, g_ru, L, I_i, I_d)]
-    return f1_p
+def f1(p, g_t, g_ru, L, I_i, I_d, N_0, W):
+
+    f1_values = np.zeros(len(p))
+    
+    for k in range(len(p)):
+        numerator = p[k] * g_t * g_ru[k] * L[k]
+        denominator = I_i[k] + I_d[k] + N_0 * W
+        f1_values[k] = np.log2(1 + numerator / denominator)
+    
+    return f1_values
 
 # Eq.28
-def calcular_f2(I_i, I_d, N_0, W):
-    # Calcula o valor de f2(p) para cada feixe
-    f2_p = [np.log2(I_i_k + I_d_k + N_0 * W) for I_i_k, I_d_k in zip(I_i, I_d)]
-    return f2_p
+def f2(I_i, I_d, N_0, W):
 
-# Eq.29
+    f2_values = np.zeros(len(I_i))
+    
+    for k in range(len(I_i)):
+        interference = I_i[k] + I_d[k] + N_0 * W
+        f2_values[k] = np.log2(interference)
+    
+    return f2_values
+
+# Eq.29 (restrições)
 def objective_function(p, C_tilde_p, D_p, lambda_star):
     return -(C_tilde_p - lambda_star * D_p)
 
@@ -353,6 +389,3 @@ def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s
                       bounds=bounds, constraints=constraints)
 
     return result
-
-
-## organizar equações do algoritmo 1
