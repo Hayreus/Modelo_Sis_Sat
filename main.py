@@ -26,7 +26,7 @@ rho = 0.8                   # Eficiência do amplificador
 
 # Funções e equações dos algoritmos 1, 2 e 3
 # Algoritmo 1
-def optimize_beam_power(epsilon, L, P_eq):
+def Algorithm_1(epsilon, L, P_eq):
     # Parâmetros iniciais
     num_iterations = len(L)  # Determina o número máximo de iterações com base no tamanho de L
     p = [None] * num_iterations
@@ -38,8 +38,8 @@ def optimize_beam_power(epsilon, L, P_eq):
     
     while i < num_iterations - 1:  # Usar 'num_iterations - 1' para garantir que não ultrapasse o índice máximo
         # Atualiza os valores de p e x
-        x[i] = Algorithm2(p[i])  # Encontra o beam assignment com p fixo
-        p[i + 1] = Algorithm3(x[i])    # Encontra a alocação de potência com x fixo
+        x[i] = Algorithm_2(p[i])  # Encontra o beam assignment com p fixo
+        p[i + 1] = Algorithm_3(x[i])    # Encontra a alocação de potência com x fixo
         
         # Verifica o critério de convergência
         if abs(eta(x[i], p[i]) - eta(x[i - 1], p[i - 1])) >= epsilon:  # Usar 'i - 1' para comparar com a iteração anterior
@@ -52,14 +52,14 @@ def optimize_beam_power(epsilon, L, P_eq):
     return p[i], x[i]
 
 # Algoritmo 2
-def Algorithm2(p):
+def Algorithm_2(p):
     m = Munkres()
     indexes = m.compute(p)
     x_star = indexes  # Atribuir os índices como a solução ótima
     return x_star
 
 
-# Equações do algoritmo 2
+# Funções das Equações para algoritmo 2
 # Eq. 12
 def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
     p_km = {}
@@ -179,27 +179,6 @@ def resolver_problema_otimizacao(q, K, M):
     result = minimize(objective_function, initial_guess, args=(q,),
                       bounds=bounds, constraints=constraints)
     return result
-
-
-
-# Algoritmo 3
-def Algorithm3(x):
-    p_0 = None  # Inicializar p_0
-    while True:
-        epsilon = 0  # Critério de parada
-        n = 0
-        lambda_n = 0
-        while True:  #Dinkelbach's algorithm
-            p_star = None 
-            F_lambda_n = C_tilde(p_star) - lambda_n * D(p_star)
-            lambda_n_plus_1 = C_tilde(p_star) / D(p_star)
-            n += 1
-            if F_lambda_n < epsilon:
-                break
-        if np.linalg.norm(np.array(p_0) - np.array(p_star)) < epsilon:
-            break
-        p_0 = p_star
-    return p_0
 
 
 # Funções das Equações para algoritmo 3
@@ -389,3 +368,23 @@ def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s
                       bounds=bounds, constraints=constraints)
 
     return result
+
+
+# Algoritmo 3
+def Algorithm_3(x):
+    p_0 = None  # Inicializar p_0
+    while True:
+        epsilon = 0  # Critério de parada
+        n = 0
+        lambda_n = 0
+        while True:  #Dinkelbach's algorithm
+            p_star = None 
+            F_lambda_n = C_tilde(p_star) - lambda_n * D(p_star)
+            lambda_n_plus_1 = C_tilde(p_star) / D(p_star)
+            n += 1
+            if F_lambda_n < epsilon:
+                break
+        if np.linalg.norm(np.array(p_0) - np.array(p_star)) < epsilon:
+            break
+        p_0 = p_star
+    return p_0
