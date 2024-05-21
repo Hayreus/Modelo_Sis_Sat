@@ -335,6 +335,15 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
     # Chute inicial: igualmente distribuído entre os feixes ativos
     initial_guess = [P_T / num_feixes] * num_feixes
     
+    def constraint_total_power(p):
+        return sum(p) - P_T
+
+    def constraint_individual_power(p):
+        return p - P_f
+
+    def constraint_received_power(p):
+        return sum(p) - P_r / (g_s * g_b * L_b)
+
     # Definindo as restrições do problema de otimização
     constraints = [{'type': 'ineq', 'fun': constraint_total_power, 'args': (P_T,)},
                    {'type': 'ineq', 'fun': constraint_individual_power, 'args': (P_f,)},
