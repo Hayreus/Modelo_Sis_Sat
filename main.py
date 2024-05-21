@@ -371,19 +371,34 @@ def resolver_problema_otimizacao(C_tilde_p, D_p, lambda_star, P_T, P_f, P_r, g_s
 
 
 # Algoritmo 3
-def Algorithm_3(x):
-    p_0 = None  # Inicializar p_0
+
+def C_tilde(p, g_t, g_ru, L, I_i, I_d, N_0, W):
+    K = len(p)
+    c_tilde = 0
+    for k in range(K):
+        numerator = p[k] * g_t * g_ru[k] * L[k]
+        denominator = I_i[k] + I_d[k] + N_0 * W
+        c_tilde += W * np.log2(1 + numerator / denominator)
+    return c_tilde
+
+def D(p, P_c, rho):
+    return P_c + (1 / rho) * sum(p)
+
+def Algorithm_3(x, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
+    epsilon = 1e-6  # Critério de parada
+    p_0 = np.zeros(len(x))  # Inicializar p_0
     while True:
-        epsilon = 0  # Critério de parada
         n = 0
         lambda_n = 0
-        while True:  #Dinkelbach's algorithm
-            p_star = None 
-            F_lambda_n = C_tilde(p_star) - lambda_n * D(p_star)
-            lambda_n_plus_1 = C_tilde(p_star) / D(p_star)
+        while True:  # Dinkelbach's algorithm
+            result = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b)
+            p_star = result.x
+            F_lambda_n = C_tilde(p_star, g_t, g_ru, L, I_i, I_d, N_0, W) - lambda_n * D(p_star, P_c, rho)
+            lambda_n_plus_1 = C_tilde(p_star, g_t, g_ru, L, I_i, I_d, N_0, W) / D(p_star, P_c, rho)
             n += 1
             if F_lambda_n < epsilon:
                 break
+            lambda_n = lambda_n_plus_1
         if np.linalg.norm(np.array(p_0) - np.array(p_star)) < epsilon:
             break
         p_0 = p_star
