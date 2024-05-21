@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import matplotlib as plt
 from scipy.optimize import minimize
 from munkres import Munkres, print_matrix
 
