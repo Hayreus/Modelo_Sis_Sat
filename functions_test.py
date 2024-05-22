@@ -25,6 +25,9 @@ P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
+n = 7                       # Número de celulas hexagonais
+
+
 
 # Dados de teste
 p = [0.5, 1.0, 1.5, 2.0, 2.5]  # Potência transmitida em cada feixe
@@ -33,6 +36,9 @@ L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3]  # Atenuação de percurso para cada feixe
 
 I_d = [1e-10, 2e-10, 1.5e-10, 1e-10, 2e-10]  # Interferência de outras fontes
 N_0 = 10**(-172/10)  # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
+
+
+
 
 #Eq. 1 (Posição Global)
 def calcular_psi(R, h, xi):
@@ -51,6 +57,68 @@ def calcular_psi(R, h, xi):
 
 psi = calcular_psi(R, h, xi)
 print (f"Ângulo de cobertura em radianos: {psi}")
+
+
+#Eq. 2 (Posição Global)
+def calcular_beta(psi, n):
+    beta = (2 * psi) / (2 * n + 1)
+    
+    return beta
+
+beta = calcular_beta(psi, n)
+print(f"Angulo de cobertura de cada célula: {beta}")
+
+
+#Eq. 3 (Posição Global)
+def calcular_Nc(n):
+    Nc = 1 + (6 * n * (n + 1)) / 2
+    
+    return Nc
+
+Nc = calcular_Nc(n)
+print(f"Número de feixes pontuais: {Nc}")
+
+
+#Eq. 4 (Posição Global)
+def calcular_theta_0(R, h, beta):
+    numerador = R * math.sin(beta / 2)
+    denominador = h + R - R * math.cos(beta / 2)
+    theta_0 = (math.atan2(numerador, denominador))/2
+    
+    return theta_0
+
+theta_0 = calcular_theta_0(R, h, beta)
+print(f"largura do feixe da célula central: {theta_0}")
+
+
+#Eq. 5 (Posição Global)
+def calcular_theta_k(R, h, beta, Nc, theta_0, n):
+
+    k = n
+    return Nc * theta_0 * (R / (h + R))**k * math.sin(theta_0 / 2) / (2 * k * math.sin(beta / 2))
+
+def calcular_theta_n_individual(R, h, beta, Nc, theta_0, n):
+
+    theta_k_sum = 0
+    for k in range(1, n):
+        theta_k_sum += calcular_theta_k(R, h, beta, Nc, theta_0, k)
+    theta_n = math.atan((R * math.sin((2 * n + 1) * beta / 2)) / (h + R - R * math.cos((2 * n + 1) * beta / 2))) - theta_k_sum - (theta_0 / 2)
+    return theta_n
+
+def calcular_theta_n(R, h, beta, Nc, theta_0, n):
+
+    theta_n = np.zeros(n)
+    for i in range(n):
+        theta_n[i] = calcular_theta_n_individual(R, h, beta, Nc, theta_0, i+1)
+    return theta_n
+
+theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
+print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
+
+
+
+
+
 
 """ 
 #Eq. 5
