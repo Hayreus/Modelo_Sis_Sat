@@ -45,6 +45,7 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     
     return I_d
 
+
 I_d = calcular_I_d(p, g_t, g_ru, L,)
 
 #Eq.20
@@ -80,8 +81,6 @@ def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
     
     return eta
 
-
-# Chama a função a ser testada
 eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
 
 # Verifica o resultado esperado
