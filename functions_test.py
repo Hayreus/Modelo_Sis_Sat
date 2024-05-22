@@ -20,9 +20,11 @@ g_s = 5                     # Lóbulo lateral da antena de satélite em dB
 g_k = range(10, 16, 1)      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 5                     # Ganho da estação de base em dB
 P_f = 0                     # Potência máxima transmitida em dBw
-P_r = -111                  # potência de interferência admissível em dBw
+P_r = -111                  # Potência de interferência admissível em dBw
 P_c = 10                    # Dissipação de potência do circuito em dBw
-rho = 0.8 
+rho = 0.8                   # Eficiência do amplificador 
+R = 6371                    # Raio médio da Terra em Km
+xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
 
 # Dados de teste
 p = [0.5, 1.0, 1.5, 2.0, 2.5]  # Potência transmitida em cada feixe
@@ -31,6 +33,34 @@ L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3]  # Atenuação de percurso para cada feixe
 
 I_d = [1e-10, 2e-10, 1.5e-10, 1e-10, 2e-10]  # Interferência de outras fontes
 N_0 = 10**(-172/10)  # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
+
+#Eq. 1 (Posição Global)
+def calcular_psi(R, h, xi):
+
+    # Cálculo do termo dentro do arco seno
+    termo_arco_seno = R / (R + h) * math.cos(xi)
+    
+    # Arco seno
+    arco_seno = math.asin(termo_arco_seno)
+    
+    # Cálculo do ângulo de cobertura area
+    area = 2 * R * (math.pi / 2 - xi - arco_seno)
+    
+    psi = area / R
+    return psi
+
+psi = calcular_psi(R, h, xi)
+print (f"Ângulo de cobertura em radianos: {psi}")
+
+""" 
+#Eq. 5
+def calcular_fk(v, f_c, c, phi, p):
+    K = len(p)
+    f_k = []
+    for k in range(K):
+        angle = phi[k]
+        f_k.append((v * f_c / c) * np.cos(angle))
+    return f_k
 
 #Eq.21
 def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
@@ -62,7 +92,7 @@ I_i = calcular_I_i(p, g_s, g_ru, L)
 print(f"Lista de interferências internas para cada feixe: {I_i}")
 
 #Eq.19
-""" def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
+def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
 
     K = len(p)  # Número de feixes
     
@@ -84,5 +114,6 @@ print(f"Lista de interferências internas para cada feixe: {I_i}")
 eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
 
 # Verifica o resultado esperado
-print(f"Eficiência Energética Calculada (W): {eta}") """
+print(f"Eficiência Energética Calculada (W): {eta}")
 
+ """
