@@ -194,7 +194,7 @@ def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
     return -eta
 
 def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
-    # Número de feixes ativos
+    # Número de feixes ativos n
     num_feixes = n
     
     # Chute inicial: igualmente distribuído entre os feixes ativos
