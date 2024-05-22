@@ -146,9 +146,11 @@ def calcular_q(X, p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
 
 # Eq. 18 (restrições)
 def objective_function(X, q):
+    
     return -sum(sum(X[k][m] * q[k][m] for m in range(M)) for k in range(K))
 
 def constraint1(X):
+    
     return [sum(X[k]) - 1 for k in range(K)]
 
 def constraint2(X):
