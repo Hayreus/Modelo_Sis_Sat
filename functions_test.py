@@ -30,10 +30,11 @@ n = 7                       # Número de celulas hexagonais
 
 
 # Dados de teste
+L_b = 1  # Perda de transmissão (ajuste conforme necessário)
+P_T = 10  # Potência total de transmissão em dBw
 p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]  # Potência transmitida em cada feixe
 g_ru = [12, 14, 13, 15, 11, 10, 16]  # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
-I_d = [1e-10, 2e-10, 1.5e-10, 1e-10, 2e-10, 2e-10, 1.8e-10]  # Interferência de outras fontes
 N_0 = 10**(-172/10)  # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
 
 
@@ -101,7 +102,7 @@ def calcular_theta_n_individual(R, h, beta, Nc, theta_0, n):
     theta_k_sum = 0
     for k in range(1, n):
         theta_k_sum += calcular_theta_k(R, h, beta, Nc, theta_0, k)
-    theta_n = math.atan((R * math.sin((2 * n + 1) * beta / 2)) / (h + R - R * math.cos((2 * n + 1) * beta / 2))) - theta_k_sum - (theta_0 / 2)
+    theta_n = math.atan((R * math.sin((2 * n + 1) * beta / 2)) / (h + R - R * math.cos((2 * n + 1) * beta / 2))) - theta_k_sum - (theta_0) # A útima parcela seria theta/2, mas ela já está dividido na função anterior
     return theta_n
 
 def calcular_theta_n(R, h, beta, Nc, theta_0, n):
@@ -129,12 +130,7 @@ f_k = calcular_fk(v, F_c, c, theta_n, p)
 print(f"Frequência desviada associada ao k-ésimo usuário: {f_k}")
 
 
-
-
-
-
-""" 
-#Eq.21
+#Eq.21 (Modelo Global)
 def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     I_d = [0] * len(p)
 
@@ -147,8 +143,8 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     
     return I_d
 
-
-I_d = calcular_I_d(p, g_t, g_ru, L,)
+I_d = calcular_I_d(p, g_t, g_ru, L, f_k, T_s)
+print(f"Interferência de outras fontes: {I_d}")
 
 #Eq.20 (Modelo Global)
 def calcular_I_i(p, g_s, g_ru, L):
@@ -188,4 +184,44 @@ eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
 # Verifica o resultado esperado
 print(f"Eficiência Energética Calculada (W): {eta}")
 
- """
+
+
+#Eq. 22 (Modelo Global)
+def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
+    numerator = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
+    denominator = P_c + (1 / rho) * sum(p)
+    eta = numerator / denominator
+    return -eta
+
+def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
+    # Número de feixes ativos
+    num_feixes = n
+    
+    # Chute inicial: igualmente distribuído entre os feixes ativos
+    initial_guess = [P_T / num_feixes] * num_feixes
+    
+    # Definindo as restrições do problema de otimização
+    def constraint_total_power(p):
+        return P_T - sum(p)  # sum(p) <= P_T
+    
+    def constraint_individual_power(p):
+        return np.array([P_f - pk for pk in p])  # p[k] <= P_f para todos k
+    
+    def constraint_received_power(p):
+        return (P_r / (g_s * g_b * L_b)) - sum(p)  # sum(p) <= P_r / (g_s * g_b * L_b)
+    
+    # Lista de restrições
+    constraints = [
+        {'type': 'ineq', 'fun': constraint_total_power},
+        {'type': 'ineq', 'fun': constraint_individual_power},
+        {'type': 'ineq', 'fun': constraint_received_power}
+    ]
+    
+    # Chamada para o otimizador
+    result = minimize(objective_function, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
+                      constraints=constraints, bounds=[(0, P_f) for _ in range(num_feixes)])
+    
+    return result
+
+result = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b)
+print("Resultado da otimização:", result)
