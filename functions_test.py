@@ -30,11 +30,10 @@ n = 7                       # Número de celulas hexagonais
 
 
 # Dados de teste
-p = [0.5, 1.0, 1.5, 2.0, 2.5]  # Potência transmitida em cada feixe
-g_ru = [12, 14, 13, 15, 11]  # Ganho da antena dos usuários em dB
-L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3]  # Atenuação de percurso para cada feixe
-
-I_d = [1e-10, 2e-10, 1.5e-10, 1e-10, 2e-10]  # Interferência de outras fontes
+p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]  # Potência transmitida em cada feixe
+g_ru = [12, 14, 13, 15, 11, 10, 16]  # Ganho da antena dos usuários em dB
+L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
+I_d = [1e-10, 2e-10, 1.5e-10, 1e-10, 2e-10, 2e-10, 1.8e-10]  # Interferência de outras fontes
 N_0 = 10**(-172/10)  # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
 
 
@@ -115,21 +114,26 @@ def calcular_theta_n(R, h, beta, Nc, theta_0, n):
 theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
 print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
 
+############################################################################################
+
+#Eq. 5 (Modelo Global)
+def calcular_fk(v, F_c, c, theta_n, p):
+    K = len(p)
+    f_k = []
+    for k in range(K):
+        angle = theta_n[k]
+        f_k.append((v * F_c / c) * np.cos(angle))
+    return f_k
+
+f_k = calcular_fk(v, F_c, c, theta_n, p)
+print(f"Frequência desviada associada ao k-ésimo usuário: {f_k}")
+
 
 
 
 
 
 """ 
-#Eq. 5
-def calcular_fk(v, f_c, c, phi, p):
-    K = len(p)
-    f_k = []
-    for k in range(K):
-        angle = phi[k]
-        f_k.append((v * f_c / c) * np.cos(angle))
-    return f_k
-
 #Eq.21
 def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     I_d = [0] * len(p)
@@ -146,7 +150,7 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
 
 I_d = calcular_I_d(p, g_t, g_ru, L,)
 
-#Eq.20
+#Eq.20 (Modelo Global)
 def calcular_I_i(p, g_s, g_ru, L):
     I_i = [0] * len(p)
     
@@ -159,7 +163,7 @@ def calcular_I_i(p, g_s, g_ru, L):
 I_i = calcular_I_i(p, g_s, g_ru, L)
 print(f"Lista de interferências internas para cada feixe: {I_i}")
 
-#Eq.19
+#Eq.19 (Modelo Global)
 def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
 
     K = len(p)  # Número de feixes
