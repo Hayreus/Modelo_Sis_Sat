@@ -62,7 +62,7 @@ I_i = calcular_I_i(p, g_s, g_ru, L)
 print(f"Lista de interferências internas para cada feixe: {I_i}")
 
 #Eq.19
-def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
+""" def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
 
     K = len(p)  # Número de feixes
     
@@ -84,5 +84,5 @@ def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
 eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
 
 # Verifica o resultado esperado
-print(f"Eficiência Energética Calculada (W): {eta}")
+print(f"Eficiência Energética Calculada (W): {eta}") """
 
