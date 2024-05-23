@@ -306,6 +306,12 @@ def tilde_C(p_opt, W, R_k):
     
     return total_capacity
 
-
 total_capacity = tilde_C(p_opt, W, R_k)
 print(f"capacidade de transmissão total no ponto ótimo: {total_capacity}")
+
+
+#Eq.23 (Modelo Global)
+def calcular_lambda_estrela(C_p_estrela, D_p_estrela):
+    # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
+    lambda_estrela = C_p_estrela / D_p_estrela
+    return lambda_estrela
