@@ -54,7 +54,6 @@ def calcular_psi(R, h, xi):
     
     psi = area / R
     return psi
-
 psi = calcular_psi(R, h, xi)
 print (f"Ângulo de cobertura em radianos: {psi}")
 
@@ -64,7 +63,6 @@ def calcular_beta(psi, n):
     beta = (2 * psi) / (2 * n + 1)
     
     return beta
-
 beta = calcular_beta(psi, n)
 print(f"Angulo de cobertura de cada célula: {beta}")
 
@@ -74,7 +72,6 @@ def calcular_Nc(n):
     Nc = 1 + (6 * n * (n + 1)) / 2
     
     return Nc
-
 Nc = calcular_Nc(n)
 print(f"Número de feixes pontuais: {Nc}")
 
@@ -86,7 +83,6 @@ def calcular_theta_0(R, h, beta):
     theta_0 = (math.atan2(numerador, denominador))/2
     
     return theta_0
-
 theta_0 = calcular_theta_0(R, h, beta)
 print(f"largura do feixe da célula central: {theta_0}")
 
@@ -111,11 +107,12 @@ def calcular_theta_n(R, h, beta, Nc, theta_0, n):
     for i in range(n):
         theta_n[i] = calcular_theta_n_individual(R, h, beta, Nc, theta_0, i+1)
     return theta_n
-
 theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
 print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
 
+
 ############################################################################################
+
 
 #Eq. 5 (Modelo Global)
 def calcular_fk(v, F_c, c, theta_n, p):
@@ -125,7 +122,6 @@ def calcular_fk(v, F_c, c, theta_n, p):
         angle = theta_n[k]
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
-
 f_k = calcular_fk(v, F_c, c, theta_n, p)
 print(f"Frequência desviada associada ao k-ésimo usuário: {f_k}")
 
@@ -142,9 +138,9 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
         I_d[k] = p[k] * g_t * g_ru[k] * L[k] * (1 - sinc_term**2)
     
     return I_d
-
 I_d = calcular_I_d(p, g_t, g_ru, L, f_k, T_s)
 print(f"Interferência de outras fontes: {I_d}")
+
 
 #Eq.20 (Modelo Global)
 def calcular_I_i(p, g_s, g_ru, L):
@@ -155,9 +151,9 @@ def calcular_I_i(p, g_s, g_ru, L):
         I_i[k] = g_s * g_ru[k] * L[k] * sum(p[k_prime] for k_prime in range(len(p)) if k_prime != k)
     
     return I_i
-
 I_i = calcular_I_i(p, g_s, g_ru, L)
 print(f"Lista de interferências internas para cada feixe: {I_i}")
+
 
 #Eq.19 (Modelo Global)
 def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
@@ -178,17 +174,11 @@ def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
     eta = C_p / D_p
     
     return eta
-
 eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
-
-# Verifica o resultado esperado
 print(f"Eficiência Energética Calculada (W): {eta}")
 
 
-
 #Eq. 22 (Modelo Global)
-
-# Função objetivo
 def objective(p, W, g_t, g_ru, L, I_i, I_d, N0, P_c, rho):
     num = np.sum([W * np.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N0 * W)) for k in range(len(p))])
     denom = P_c + (1 / rho) * np.sum(p)
@@ -203,14 +193,11 @@ def constraint2(p, P_f):
 
 def constraint3(p, P_r, g_s, g_b, L_b):
     return P_r - np.sum(p) * g_s * g_b * L_b
-
-
-
 # Número de feixes ativos
 A = len(g_ru)
 
 # Inicialização das potências (valores iniciais)
-p0 = np.ones(A) * (P_T / A)
+p_0 = np.ones(A) * (P_T / A)
 
 # Definição das restrições
 con1 = {'type': 'ineq', 'fun': constraint1, 'args': (P_T,)}
@@ -222,11 +209,103 @@ cons = [con1, con2, con3]
 bounds = [(0, P_f) for _ in range(A)]
 
 # Resolução do problema de otimização
-solution = minimize(objective, p0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
+solution = minimize(objective, p_0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
                     method='SLSQP', bounds=bounds, constraints=cons)
 
 # Potências ótimas
+p_max = -solution.fun
 p_opt = solution.x
 
 print("Potências ótimas dos feixes:", p_opt)
-print("Valor máximo da eficiência energética:", -solution.fun)
+print("Valor máximo da eficiência energética:", p_max)
+
+
+#Eq.27 (Modelo Global)
+def f1(p, g_t, g_ru, L, I_i, I_d, N_0, W):
+    f1_values = np.zeros(len(p))
+    
+    for k in range(len(p)):
+        numerator = p[k] * g_t * g_ru[k] * L[k]
+        denominator = I_i[k] + I_d[k] + N_0 * W
+        f1_values[k] = np.log2(1 + numerator / denominator)
+    
+    return f1_values
+
+
+#Eq.28 (Modelo Global)
+def f2(I_i, I_d, N_0, W):
+    f2_values = np.zeros(len(I_i))
+    
+    for k in range(len(I_i)):
+        interference = I_i[k] + I_d[k] + N_0 * W
+        f2_values[k] = np.log2(interference)
+    
+    return f2_values
+f_1 = f1(p, g_t, g_ru, L, I_i, I_d, N_0, W)
+f_2 = f2(I_i, I_d, N_0, W)
+
+print(f"Valor de f1: {f_1}")
+print(f"Valor de f2: {f_2}")
+
+
+#Eq.26 (Modelo Global)
+def calcular_C_p(p, f_1, f_2, W):
+    C_p = np.zeros(len(p))
+    for k in range(len(p)):
+        C_p[k] = W * (f_1[k] - f_2[k])
+    return C_p
+S_p = calcular_C_p(p, f_1, f_2, W)
+print(f"soma ponderada das diferenças entre f1(p_k) e f2(p_k): {S_p}")
+
+
+#Eq.25 (Modelo Global)
+def grad_f2(I_i, I_d, N_0, W):
+    K = len(I_i)  # Número de feixes
+    grad_values = np.zeros(K)
+    
+    for k in range(K):
+        interference = I_i[k] + I_d[k] + N_0 * W
+        grad_values[k] = 1 / (np.log(2) * interference)  # Derivada de log2(interference)
+    
+    return grad_values
+gra_f2 = grad_f2(I_i, I_d, N_0, W)
+print(f"Gradiente de f2: {grad_f2}")
+
+def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
+   
+    K = len(p)  # Número de feixes
+    tilde_R = np.zeros(K)
+    
+    for k in range(K):
+        gradient_term = gra_f2[k] * (p[k] - p_0[k])
+        tilde_R[k] = f_1[k] - (f_2[k] - gradient_term)
+    
+    return tilde_R
+
+tilde_R = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
+print(f"limite inferior da taxa de soma do utilizador k: {tilde_R}")
+
+
+#Eq.24 (Modelo Global)
+def R_k(p_opt, k):
+    # Exemplo simplificado: taxa de transmissão proporcional à potência alocada
+    # Isso deve ser substituído pelo cálculo real da taxa de transmissão
+    return p_opt[k] * 1  # Substitua esta linha com o cálculo real
+
+def tilde_C(p_opt, W, R_k):
+    # Inicializa a capacidade de transmissão total
+    total_capacity = 0
+    
+    # Itera sobre cada usuário k
+    for k in range(len(p_opt)):
+        # Soma a taxa de transmissão do feixe k ao total
+        total_capacity += R_k(p_opt, k)
+    
+    # Multiplica pela largura de banda W
+    total_capacity *= W
+    
+    return total_capacity
+
+
+total_capacity = tilde_C(p_opt, W, R_k)
+print(f"capacidade de transmissão total no ponto ótimo: {total_capacity}")
