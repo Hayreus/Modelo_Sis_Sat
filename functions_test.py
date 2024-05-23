@@ -19,7 +19,7 @@ g_t = 52.1                  # Ganho da antena do satélite em dB
 g_s = 5                     # Lóbulo lateral da antena de satélite em dB
 g_k = range(10, 16, 1)      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 5                     # Ganho da estação de base em dB
-P_f = 0                     # Potência máxima transmitida em dBw
+P_f = 10                    # Potência máxima transmitida em dBw***
 P_r = -111                  # Potência de interferência admissível em dBw
 P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
@@ -30,12 +30,12 @@ n = 7                       # Número de celulas hexagonais
 
 
 # Dados de teste
-L_b = 1  # Perda de transmissão (ajuste conforme necessário)
-P_T = 10  # Potência total de transmissão em dBw
-p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]  # Potência transmitida em cada feixe
-g_ru = [12, 14, 13, 15, 11, 10, 16]  # Ganho da antena dos usuários em dB
+L_b = 1                     # Perda de transmissão (ajuste conforme necessário)
+P_T = 10                    # Potência total de transmissão em dBw
+p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
+g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
-N_0 = 10**(-172/10)  # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
+N_0 = 10**(-172/10)                         # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
 
 
 
@@ -187,41 +187,46 @@ print(f"Eficiência Energética Calculada (W): {eta}")
 
 
 #Eq. 22 (Modelo Global)
-def objective_function(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho):
-    numerator = sum(W * math.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(len(p)))
-    denominator = P_c + (1 / rho) * sum(p)
-    eta = numerator / denominator
-    return -eta
 
-def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b):
-    # Número de feixes ativos n
-    num_feixes = n
-    
-    # Chute inicial: igualmente distribuído entre os feixes ativos
-    initial_guess = [P_T / num_feixes] * num_feixes
-    
-    # Definindo as restrições do problema de otimização
-    def constraint_total_power(p):
-        return P_T - sum(p)  # sum(p) <= P_T
-    
-    def constraint_individual_power(p):
-        return np.array([P_f - pk for pk in p])  # p[k] <= P_f para todos k
-    
-    def constraint_received_power(p):
-        return (P_r / (g_s * g_b * L_b)) - sum(p)  # sum(p) <= P_r / (g_s * g_b * L_b)
-    
-    # Lista de restrições
-    constraints = [
-        {'type': 'ineq', 'fun': constraint_total_power},
-        {'type': 'ineq', 'fun': constraint_individual_power},
-        {'type': 'ineq', 'fun': constraint_received_power}
-    ]
-    
-    # Chamada para o otimizador
-    result = minimize(objective_function, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
-                      constraints=constraints, bounds=[(0, P_f) for _ in range(num_feixes)])
-    
-    return result
+# Função objetivo
+def objective(p, W, g_t, g_ru, L, I_i, I_d, N0, P_c, rho):
+    num = np.sum([W * np.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N0 * W)) for k in range(len(p))])
+    denom = P_c + (1 / rho) * np.sum(p)
+    return -num / denom  # Negativo porque estamos maximizando
 
-result = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b)
-print("Resultado da otimização:", result)
+# Restrições
+def constraint1(p, P_T):
+    return P_T - np.sum(p)
+
+def constraint2(p, P_f):
+    return P_f - np.max(p)
+
+def constraint3(p, P_r, g_s, g_b, L_b):
+    return P_r - np.sum(p) * g_s * g_b * L_b
+
+
+
+# Número de feixes ativos
+A = len(g_ru)
+
+# Inicialização das potências (valores iniciais)
+p0 = np.ones(A) * (P_T / A)
+
+# Definição das restrições
+con1 = {'type': 'ineq', 'fun': constraint1, 'args': (P_T,)}
+con2 = {'type': 'ineq', 'fun': constraint2, 'args': (P_f,)}
+con3 = {'type': 'ineq', 'fun': constraint3, 'args': (P_r, g_s, g_b, L_b)}
+cons = [con1, con2, con3]
+
+# Limites para as potências
+bounds = [(0, P_f) for _ in range(A)]
+
+# Resolução do problema de otimização
+solution = minimize(objective, p0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
+                    method='SLSQP', bounds=bounds, constraints=cons)
+
+# Potências ótimas
+p_opt = solution.x
+
+print("Potências ótimas dos feixes:", p_opt)
+print("Valor máximo da eficiência energética:", -solution.fun)
