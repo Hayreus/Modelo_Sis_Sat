@@ -193,6 +193,7 @@ def constraint2(p, P_f):
 
 def constraint3(p, P_r, g_s, g_b, L_b):
     return P_r - np.sum(p) * g_s * g_b * L_b
+
 # Número de feixes ativos
 A = len(g_ru)
 
@@ -214,9 +215,9 @@ solution = minimize(objective, p_0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, r
 
 # Potências ótimas
 p_max = -solution.fun
-p_opt = solution.x
+p_star = solution.x
 
-print("Potências ótimas dos feixes:", p_opt)
+print("Potências ótimas dos feixes:", p_star)
 print("Valor máximo da eficiência energética:", p_max)
 
 
@@ -287,31 +288,32 @@ print(f"limite inferior da taxa de soma do utilizador k: {tilde_R}")
 
 
 #Eq.24 (Modelo Global)
-def R_k(p_opt, k):
+def R_k(p_star, k):
     # Exemplo simplificado: taxa de transmissão proporcional à potência alocada
     # Isso deve ser substituído pelo cálculo real da taxa de transmissão
-    return p_opt[k] * 1  # Substitua esta linha com o cálculo real
+    return p_star[k] * 1  # Substitua esta linha com o cálculo real
 
-def tilde_C(p_opt, W, R_k):
+def tilde_C(p_star, W, R_k):
     # Inicializa a capacidade de transmissão total
     total_capacity = 0
     
     # Itera sobre cada usuário k
-    for k in range(len(p_opt)):
+    for k in range(len(p_star)):
         # Soma a taxa de transmissão do feixe k ao total
-        total_capacity += R_k(p_opt, k)
+        total_capacity += R_k(p_star, k)
     
     # Multiplica pela largura de banda W
     total_capacity *= W
     
     return total_capacity
 
-total_capacity = tilde_C(p_opt, W, R_k)
+total_capacity = tilde_C(p_star, W, R_k)
 print(f"capacidade de transmissão total no ponto ótimo: {total_capacity}")
 
 
 #Eq.23 (Modelo Global)
-def calcular_lambda_estrela(C_p_estrela, D_p_estrela):
+def calcular_lambda_estrela(C_p_estrela, D_p_star):
     # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
-    lambda_estrela = C_p_estrela / D_p_estrela
+    lambda_estrela = C_p_estrela / D_p_star
     return lambda_estrela
+
