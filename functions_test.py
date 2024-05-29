@@ -9,7 +9,7 @@ c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7.46                    # Velocidade orbital em km/s
 F_c = 20                    # Frequencia de centro em Ghz
-W = 28                      # Largura de banda em MHz (28e6)
+W = 28 * 10**6               # Largura de banda em MHz (28e6)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
@@ -17,7 +17,7 @@ N_0 = -172                  # Densidade espetral do ruído em dBw/Hz
 M = 7                       # Número de feixes de antenas
 g_t = 52.1                  # Ganho da antena do satélite em dB
 g_s = 5                     # Lóbulo lateral da antena de satélite em dB
-g_k = range(10, 16, 1)      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
+g_k = [10, 11, 12, 13, 14, 15]      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 5                     # Ganho da estação de base em dB
 P_f = 10                    # Potência máxima transmitida em dBw***
 P_r = -111                  # Potência de interferência admissível em dBw
@@ -30,8 +30,8 @@ n = 7                       # Número de celulas hexagonais
 
 
 # Dados de teste
-L_b = 1                     # Perda de transmissão (ajuste conforme necessário)
-P_T = 10                    # Potência total de transmissão em dBw
+L_b = 1                 # Perda de transmissão (ajuste conforme necessário)
+P_T = 30                   # Potência total de transmissão em dBw
 p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
 g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
@@ -316,4 +316,3 @@ def calcular_lambda_estrela(C_p_estrela, D_p_star):
     # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
     lambda_estrela = C_p_estrela / D_p_star
     return lambda_estrela
-
