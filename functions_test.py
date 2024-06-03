@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from munkres import Munkres, print_matrix
 
@@ -9,11 +9,11 @@ c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7.46                    # Velocidade orbital em km/s
 F_c = 20                    # Frequencia de centro em Ghz
-W = 28 * 10**6               # Largura de banda em MHz (28e6)
+W = 28 * 10**6               # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
-N_0 = -172                  # Densidade espetral do ruído em dBw/Hz
+N_0 = 10**(-172/10)   # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 7                       # Número de feixes de antenas
 g_t = 52.1                  # Ganho da antena do satélite em dB
 g_s = 5                     # Lóbulo lateral da antena de satélite em dB
@@ -25,8 +25,7 @@ P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
-n = 7                       # Número de celulas hexagonais
-
+n =  7                     # Número de celulas hexagonais
 
 
 # Dados de teste
@@ -35,9 +34,6 @@ P_T = 30                   # Potência total de transmissão em dBw
 p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
 g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
-N_0 = 10**(-172/10)                         # Densidade espectral do ruído convertida de dBw/Hz para W/Hz
-
-
 
 
 #Eq. 1 (Posição Global)
@@ -111,7 +107,9 @@ theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
 print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
 
 
+
 ############################################################################################
+
 
 
 #Eq. 5 (Modelo Global)
@@ -284,7 +282,7 @@ def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
     return tilde_R
 
 tilde_R = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
-print(f"limite inferior da taxa de soma do utilizador k: {tilde_R}")
+print(f"Limite inferior da taxa de soma do utilizador k: {tilde_R}")
 
 
 #Eq.24 (Modelo Global)
@@ -307,12 +305,97 @@ def tilde_C(p_star, W, R_k):
     
     return total_capacity
 
-total_capacity = tilde_C(p_star, W, R_k)
-print(f"capacidade de transmissão total no ponto ótimo: {total_capacity}")
+tilde_C_p_star = tilde_C(p_star, W, R_k)
+print(f"Capacidade de transmissão total no ponto ótimo: {tilde_C_p_star}")
 
 
 #Eq.23 (Modelo Global)
-def calcular_lambda_estrela(C_p_estrela, D_p_star):
+def calcular_D(p_star, P_c, rho):
+    D_p_star = P_c + (1 / rho) * sum(p_star)
+    return D_p_star
+
+D_p_star = calcular_D(p_star, P_c, rho)
+print(f"D_p_star: {D_p_star}")
+
+def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
     # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
-    lambda_estrela = C_p_estrela / D_p_star
+    lambda_estrela = tilde_C_p_star / D_p_star
     return lambda_estrela
+
+lambda_estrela = calcular_D(p_star, P_c, rho)
+print(f"Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from scipy.optimize import minimize
+
+# Eq. 29 (Modelo Global)
+def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
+    return -(tilde_C_p_star - lambda_estrela * D_p_star)
+
+def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
+    """
+    Resolve o problema de otimização utilizando minimize do scipy.
+
+    Parâmetros:
+        - W: largura de banda (float)
+        - g_t: ganho de transmissão (float)
+        - g_ru: ganho de recepção do usuário (list[float])
+        - L: atenuação de percurso (list[float])
+        - I_i: interferência interna (list[float])
+        - I_d: interferência externa (list[float])
+        - N_0: densidade espectral de potência do ruído (float)
+        - P_c: potência consumida pelo circuito (float)
+        - rho: eficiência energética (float)
+        - P_T: potência total disponível (float)
+        - P_f: potência individual máxima permitida (float)
+        - P_r: potência recebida mínima (float)
+        - g_s: ganho do transmissor do satélite (float)
+        - g_b: ganho do transmissor do usuário (float)
+        - L_b: atenuação de percurso entre o satélite e o usuário (float)
+        - lambda_estrela: multiplicador de Lagrange associado à restrição de potência (float)
+
+    Retorna:
+        - result: resultado do processo de otimização
+    """
+    # Chute inicial: igualmente distribuído entre os feixes ativos
+    initial_guess = [P_T / len(g_ru)] * len(g_ru)
+    
+    def constraint_total_power(p):
+        # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
+        return sum(p) - P_T
+
+    def constraint_individual_power(p):
+        # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
+        return p - P_f
+
+    def constraint_received_power(p):
+        # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
+        return sum(p) - P_r / (g_s * g_b * L_b)
+
+    # Definindo as restrições do problema de otimização
+    constraints = [{'type': 'ineq', 'fun': constraint_total_power},
+                   {'type': 'ineq', 'fun': constraint_individual_power},
+                   {'type': 'ineq', 'fun': constraint_received_power}]
+    
+    # Chamada para o otimizador
+    result = minimize(objetivo, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela, tilde_C_p_star, D_p_star),
+                      constraints=constraints)
+    
+    return result
+
+resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
+print(f"Resultado da maximização: {resultado_max}")
