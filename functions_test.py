@@ -331,30 +331,7 @@ def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_
     return -(tilde_C_p_star - lambda_estrela * D_p_star)
 
 def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
-    """
-    Resolve o problema de otimização utilizando minimize do scipy.
-
-    Parâmetros:
-        - W: largura de banda (float)
-        - g_t: ganho de transmissão (float)
-        - g_ru: ganho de recepção do usuário (list[float])
-        - L: atenuação de percurso (list[float])
-        - I_i: interferência interna (list[float])
-        - I_d: interferência externa (list[float])
-        - N_0: densidade espectral de potência do ruído (float)
-        - P_c: potência consumida pelo circuito (float)
-        - rho: eficiência energética (float)
-        - P_T: potência total disponível (float)
-        - P_f: potência individual máxima permitida (float)
-        - P_r: potência recebida mínima (float)
-        - g_s: ganho do transmissor do satélite (float)
-        - g_b: ganho do transmissor do usuário (float)
-        - L_b: atenuação de percurso entre o satélite e o usuário (float)
-        - lambda_estrela: multiplicador de Lagrange associado à restrição de potência (float)
-
-    Retorna:
-        - result: resultado do processo de otimização
-    """
+    
     # Chute inicial: igualmente distribuído entre os feixes ativos
     initial_guess = [P_T / len(g_ru)] * len(g_ru)
     
@@ -386,10 +363,7 @@ print(f"Resultado da maximização: {resultado_max}")
 
 
 
-
-
 #Algoritmo 3
-# Inicialização
 # Inicialização
 def initialization():
     """
@@ -467,3 +441,40 @@ p_star, lambda_star = dinkelbach_algorithm(p_0)
 
 print(f"Potências ótimas dos feixes: {p_star}")
 print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
+
+
+#Algoritmo 2
+def Algorithm2(p):
+    m = Munkres()
+    indexes = m.compute(p)
+    x_star = [[0] * len(p[0]) for _ in range(len(p))]  # Inicializa uma matriz de zeros do mesmo tamanho de p
+    for row, col in indexes:
+        x_star[row][col] = 1  # Define como 1 onde o feixe está alocado
+    return x_star
+
+
+# Algoritmo 1
+def optimize_beam_power(epsilon, L, P_eq):
+    # Parâmetros iniciais
+    num_iterations = len(L)  # Determina o número máximo de iterações com base no tamanho de L
+    p = [None] * num_iterations
+    x = [None] * num_iterations
+    
+    # Configuração inicial
+    i = 0
+    p[i] = P_eq
+    
+    while i < num_iterations - 1:  # Usar 'num_iterations - 1' para garantir que não ultrapasse o índice máximo
+        # Atualiza os valores de p e x
+        x[i] = Algorithm2(p[i])  # Encontra o beam assignment com p fixo
+        p[i + 1] = Algorithm3(x[i])    # Encontra a alocação de potência com x fixo
+        
+        # Verifica o critério de convergência
+        if abs(eta(x[i], p[i]) - eta(x[i - 1], p[i - 1])) >= epsilon:  # Usar 'i - 1' para comparar com a iteração anterior
+            break
+    
+        # Atualiza o índice para o próximo loop
+        i += 1
+    
+    # Retorna as matrizes p* e x*
+    return p[i], x[i]
