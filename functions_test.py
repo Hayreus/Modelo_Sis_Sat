@@ -326,22 +326,6 @@ lambda_estrela = calcular_D(p_star, P_c, rho)
 print(f"Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from scipy.optimize import minimize
-
 # Eq. 29 (Modelo Global)
 def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
     return -(tilde_C_p_star - lambda_estrela * D_p_star)
@@ -399,3 +383,87 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
 
 resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
 print(f"Resultado da maximização: {resultado_max}")
+
+
+
+
+
+#Algoritmo 3
+# Inicialização
+# Inicialização
+def initialization():
+    """
+    Inicializa o vetor de potências com valores aleatórios distribuídos entre os feixes ativos.
+    """
+    p_0 = np.random.uniform(0, P_T / len(g_ru), len(g_ru))
+    return p_0
+
+# Função objetivo para Dinkelbach
+def objetivo_dinkelbach(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n):
+    """
+    Calcula a função objetivo do algoritmo de Dinkelbach.
+    """
+    tilde_C_p = tilde_C(p, W, R_k)
+    D_p = calcular_D(p, P_c, rho)
+    return -(tilde_C_p - lambda_n * D_p)
+
+# Otimização usando minimize
+def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
+    """
+    Resolve o problema de otimização usando a função objetivo de Dinkelbach e as restrições definidas.
+    """
+    constraints = [
+        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p)},  # Soma das potências dos feixes ativos <= potência total disponível
+        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
+        {'type': 'ineq', 'fun': lambda p: P_r - np.sum(p) * g_s * g_b * L_b}  # Soma das potências dos feixes ativos >= potência recebida mínima
+    ]
+
+    result = minimize(
+        objetivo_dinkelbach, 
+        p_0, 
+        args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n), 
+        constraints=constraints,
+        method='SLSQP'  # Usando um método específico de otimização
+    )
+
+    return result
+
+# Algoritmo de Dinkelbach
+def dinkelbach_algorithm(p_0, epsilon=1e-5):
+    """
+    Executa o algoritmo de Dinkelbach para encontrar a solução ótima.
+    """
+    lambda_n = 0  # Inicializa o parâmetro lambda
+    n = 0  # Contador de iterações
+
+    while True:
+        # Resolve o problema de otimização com o valor atual de lambda_n
+        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0)
+        p_star = result.x  # Potências ótimas encontradas
+
+        # Calcula tilde_C e D para as potências ótimas
+        tilde_C_p_star = tilde_C(p_star, W, R_k)
+        D_p_star = calcular_D(p_star, P_c, rho)
+
+        # Calcula F(lambda_n)
+        F_lambda_n = tilde_C_p_star - lambda_n * D_p_star
+
+        # Verifica a condição de parada
+        if F_lambda_n < epsilon:
+            break
+
+        # Atualiza lambda_n e p_0 para a próxima iteração
+        lambda_n = tilde_C_p_star / D_p_star
+        p_0 = p_star
+        n += 1
+
+    return p_star, lambda_n
+
+# Inicialização
+p_0 = initialization()
+
+# Executando o algoritmo de Dinkelbach
+p_star, lambda_star = dinkelbach_algorithm(p_0)
+
+print(f"Potências ótimas dos feixes: {p_star}")
+print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
