@@ -9,11 +9,11 @@ c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7.46                    # Velocidade orbital em km/s
 F_c = 20                    # Frequencia de centro em Ghz
-W = 28 * 10**6              # Largura de banda em MHz 28 (28e6 Hz)
+W = 28 * 10**6               # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
-N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
+N_0 = 10**(-172/10)   # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 7                       # Número de feixes de antenas
 g_t = 52.1                  # Ganho da antena do satélite em dB
 g_s = 5                     # Lóbulo lateral da antena de satélite em dB
@@ -25,18 +25,15 @@ P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
-n =  7                      # Número de celulas hexagonais
-delta = 0.35                # Ganho do lóbulo lateral
-theta = 90 * math.pi / 180  # Largura do feixe da antena de 0 a 360
+n =  7                     # Número de celulas hexagonais
 
 
 # Dados de teste
-L_b = 1                     # Perda de transmissão (ajuste conforme necessário)
-P_T = 30                    # Potência total de transmissão em dBw
+L_b = 1                 # Perda de transmissão (ajuste conforme necessário)
+P_T = 30                   # Potência total de transmissão em dBw
 p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
 g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
-L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]      # Atenuação de percurso para cada feixe
-
+L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
 
 #Eq. 1 (Posição Global)
@@ -435,73 +432,3 @@ p_star, lambda_star = dinkelbach_algorithm(p_0)
 
 print(f"Potências ótimas dos feixes: {p_star}")
 print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
-
-
-
-####################################################################################
-
-
-
-# Eq. 1 (Modelo Global)
-def calcular_gs_gt(theta, delta):
-    # Calcula g_t usando a primeira equação
-    gt = (2 * math.pi - (2 * math.pi - theta) * delta) / theta
-
-    # Calcula g_s usando a segunda equação
-    gs = delta
-
-    return gs, gt
-
-g_s, g_t = calcular_gs_gt(theta, delta)
-print(f"gs e gt: {g_s, g_t}")
-
-
-
-# Eq. 2 (Modelo Global)
-def calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W):
-
-    K, M = p.shape
-    gamma = np.zeros((K, M))
-    
-    for k in range(K):
-        for m in range(M):
-            numerator = p[k, m] * g_t * g_ru[k] * L[k]
-            denominator = I_i[k, m] + I_d[k, m] + N_0 * W
-            gamma[k, m] = numerator / denominator
-    
-    return gamma
-
-gamma = calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W)
-print(f"gamma: {gamma}")
-
-
-
-
-
-
-
-def eta(p, R, P_c, rho):
-
-    k = len(p)
-    m = len (Nc)
-
-    maXtriz_uns = np.ones((k, m))
-
-    numerator = 0
-    denominator = P_c
-
-    K = len(X)
-    M = len(X[0])
-
-    # Calcula o numerador
-    for k in range(K):
-        for m in range(M):
-            numerator += R[k] * X[k][m]
-
-    # Calcula o denominador
-    for k in range(K):
-        for m in range(M):
-            denominator += (1 / rho) * P[k][m] * X[k][m]
-
-    # Retorna a eficiência energética
-    return numerator / denominator

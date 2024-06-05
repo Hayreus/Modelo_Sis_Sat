@@ -456,52 +456,46 @@ g_s, g_t = calcular_gs_gt(theta, delta)
 print(f"gs e gt: {g_s, g_t}")
 
 
+# Eq. 3 (Modelo Global)
+def calcular_I_i(p, g_s, g_ru, L):
+
+    p = np.array([p])  # Vetor de potência
+
+    K, M = p.shape
+    I_i = np.zeros((K, M))
+    
+    for k in range(K):
+        for m in range(M):
+            interference = 0
+            for k_prime in range(K):
+                if k_prime != k:
+                    for m_prime in range(M):
+                        if m_prime != m:
+                            interference += p[k_prime, m_prime] * x[k_prime, m_prime]
+            I_i[k, m] = g_s * g_ru[k] * L[k] * interference
+
+    return I_i
+
+I_i = calcular_I_i(p, x, g_s, g_ru, L)
+print(f"I_i: {I_i}")
+
 
 # Eq. 2 (Modelo Global)
 def calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W):
+    # Certifique-se de que p é um array do NumPy
 
+    p = np.array([p])  # Vetor de potência
     K, M = p.shape
     gamma = np.zeros((K, M))
     
     for k in range(K):
         for m in range(M):
             numerator = p[k, m] * g_t * g_ru[k] * L[k]
-            denominator = I_i[k, m] + I_d[k, m] + N_0 * W
+            denominator = I_i[k] + I_d[k] + N_0 * W
             gamma[k, m] = numerator / denominator
     
     return gamma
 
+
 gamma = calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W)
 print(f"gamma: {gamma}")
-
-
-
-
-
-
-
-def eta(p, R, P_c, rho):
-
-    k = len(p)
-    m = len (Nc)
-
-    maXtriz_uns = np.ones((k, m))
-
-    numerator = 0
-    denominator = P_c
-
-    K = len(X)
-    M = len(X[0])
-
-    # Calcula o numerador
-    for k in range(K):
-        for m in range(M):
-            numerator += R[k] * X[k][m]
-
-    # Calcula o denominador
-    for k in range(K):
-        for m in range(M):
-            denominator += (1 / rho) * P[k][m] * X[k][m]
-
-    # Retorna a eficiência energética
-    return numerator / denominator
