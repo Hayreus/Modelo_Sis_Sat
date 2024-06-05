@@ -357,7 +357,14 @@ print(f"Resultado da maximização: {resultado_max}")
 
 
 
+###################################################################################################################
+
+
+
 #Algoritmo 3
+
+
+
 # Inicialização
 def initialization():
     """
@@ -441,6 +448,8 @@ print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
 ####################################################################################
 
 
+#Algoritmo 2
+
 
 # Eq. 1 (Modelo Global)
 def calcular_gs_gt(theta, delta):
@@ -457,45 +466,24 @@ print(f"gs e gt: {g_s, g_t}")
 
 
 # Eq. 3 (Modelo Global)
-def calcular_I_i(p, g_s, g_ru, L):
 
-    p = np.array([p])  # Vetor de potência
 
-    K, M = p.shape
-    I_i = np.zeros((K, M))
-    
-    for k in range(K):
-        for m in range(M):
-            interference = 0
-            for k_prime in range(K):
-                if k_prime != k:
-                    for m_prime in range(M):
-                        if m_prime != m:
-                            interference += p[k_prime, m_prime] * x[k_prime, m_prime]
-            I_i[k, m] = g_s * g_ru[k] * L[k] * interference
+# Eq. 5 (Modelo Global)
 
-    return I_i
 
-I_i = calcular_I_i(p, x, g_s, g_ru, L)
-print(f"I_i: {I_i}")
+# Eq. 4 (Modelo Global)
 
 
 # Eq. 2 (Modelo Global)
-def calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W):
-    # Certifique-se de que p é um array do NumPy
-
-    p = np.array([p])  # Vetor de potência
-    K, M = p.shape
-    gamma = np.zeros((K, M))
-    
-    for k in range(K):
-        for m in range(M):
-            numerator = p[k, m] * g_t * g_ru[k] * L[k]
-            denominator = I_i[k] + I_d[k] + N_0 * W
-            gamma[k, m] = numerator / denominator
-    
-    return gamma
 
 
-gamma = calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W)
-print(f"gamma: {gamma}")
+# Eq. 6 (Modelo Global)
+
+
+# Eq. 7 (Modelo Global)
+
+
+# Eq. 8 (Modelo Global)
+
+
+# Eq. 9 (Modelo Global)
