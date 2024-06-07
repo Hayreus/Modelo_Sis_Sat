@@ -9,33 +9,32 @@ c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7.46                    # Velocidade orbital em km/s
 F_c = 20                    # Frequencia de centro em Ghz
-W = 28 * 10**6              # Largura de banda em MHz 28 (28e6 Hz)
+W = 28 * 10**6               # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
-N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
+N_0 = 10**(-172/10)   # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 7                       # Número de feixes de antenas
-g_t = 52.1                  # Ganho da antena do satélite em dB
-g_s = 5                     # Lóbulo lateral da antena de satélite em dB
+g_t = 10**(52.1/10)                  # Ganho da antena do satélite em dB
+g_s = 10**(5/10)                      # Lóbulo lateral da antena de satélite em dB
 g_k = [10, 11, 12, 13, 14, 15]      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
-g_b = 5                     # Ganho da estação de base em dB
-P_f = 10                    # Potência máxima transmitida em dBw***
-P_r = -111                  # Potência de interferência admissível em dBw
-P_c = 10                    # Dissipação de potência do circuito em dBw
+g_b = 10**(5/10)                      # Ganho da estação de base em dB
+P_f = 10**(10/10)                     # Potência máxima transmitida em dBw***
+P_r = 10**(-111/10)         # Potência de interferência admissível em dBw
+P_c = 10**(10/10)                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
-n =  7                      # Número de celulas hexagonais
-delta = 0.35                # Ganho do lóbulo lateral
-theta = 90 * math.pi / 180  # Largura do feixe da antena de 0 a 360
-
+n =  7                     # Número de celulas hexagonais
+N = 1                       # Número de niveis de camada hexagonais
 
 # Dados de teste
-L_b = 1                     # Perda de transmissão (ajuste conforme necessário)
-P_T = 30                    # Potência total de transmissão em dBw
-p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
-g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
-L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]      # Atenuação de percurso para cada feixe
+L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
+P_T = 10**(30/10)                   # Potência total de transmissão em dBw
+p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/10), 10**(1.3/10)]     # Potência transmitida em cada feixe
+g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
+L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
+
 
 
 
@@ -54,7 +53,7 @@ def calcular_psi(R, h, xi):
     psi = area / R
     return psi
 psi = calcular_psi(R, h, xi)
-print (f"Ângulo de cobertura em radianos: {psi}")
+print (f"--Ângulo de cobertura em radianos: {psi}")
 
 
 #Eq. 2 (Posição Global)
@@ -63,16 +62,16 @@ def calcular_beta(psi, n):
     
     return beta
 beta = calcular_beta(psi, n)
-print(f"Angulo de cobertura de cada célula: {beta}")
+print(f"--Angulo de cobertura de cada célula: {beta}")
 
 
 #Eq. 3 (Posição Global)
-def calcular_Nc(n):
-    Nc = 1 + (6 * n * (n + 1)) / 2
+def calcular_Nc(N):
+    Nc = 1 + (6 * N * (N + 1)) / 2
     
     return Nc
-Nc = calcular_Nc(n)
-print(f"Número de feixes pontuais: {Nc}")
+Nc = calcular_Nc(N)
+print(f"--Número de feixes pontuais: {Nc}")
 
 
 #Eq. 4 (Posição Global)
@@ -83,7 +82,7 @@ def calcular_theta_0(R, h, beta):
     
     return theta_0
 theta_0 = calcular_theta_0(R, h, beta)
-print(f"largura do feixe da célula central: {theta_0}")
+print(f"--largura do feixe da célula central: {theta_0}")
 
 
 #Eq. 5 (Posição Global)
@@ -107,24 +106,24 @@ def calcular_theta_n(R, h, beta, Nc, theta_0, n):
         theta_n[i] = calcular_theta_n_individual(R, h, beta, Nc, theta_0, i+1)
     return theta_n
 theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
-print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
+print("--Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
 
 
 
 ############################################################################################
-
+# Equações para algoritmo 3
 
 
 #Eq. 5 (Modelo Global)
-def calcular_fk(v, F_c, c, theta_n, p):
-    K = len(p)
+def calcular_fk(v, F_c, c, theta_n, n):
+    K = n
     f_k = []
     for k in range(K):
         angle = theta_n[k]
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
-f_k = calcular_fk(v, F_c, c, theta_n, p)
-print(f"Frequência desviada associada ao k-ésimo usuário: {f_k}")
+f_k = calcular_fk(v, F_c, c, theta_n, n)
+print(f"--Eq. 5 Frequência desviada associada ao k-ésimo usuário: {f_k}")
 
 
 #Eq.21 (Modelo Global)
@@ -140,7 +139,7 @@ def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
     
     return I_d
 I_d = calcular_I_d(p, g_t, g_ru, L, f_k, T_s)
-print(f"Interferência de outras fontes: {I_d}")
+print(f"--Eq.21 Interferência de outras fontes: {I_d}")
 
 
 #Eq.20 (Modelo Global)
@@ -153,7 +152,7 @@ def calcular_I_i(p, g_s, g_ru, L):
     
     return I_i
 I_i = calcular_I_i(p, g_s, g_ru, L)
-print(f"Lista de interferências internas para cada feixe: {I_i}")
+print(f"--Eq.20 Lista de interferências internas para cada feixe: {I_i}")
 
 
 #Eq.19 (Modelo Global)
@@ -176,7 +175,7 @@ def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
     
     return eta
 eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
-print(f"Eficiência Energética Calculada (W): {eta}")
+print(f"--Eq.19 Eficiência Energética Calculada (W): {eta}")
 
 
 #Eq. 22 (Modelo Global)
@@ -218,8 +217,8 @@ solution = minimize(objective, p_0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, r
 p_max = -solution.fun
 p_star = solution.x
 
-print("Potências ótimas dos feixes:", p_star)
-print("Valor máximo da eficiência energética:", p_max)
+print("--Eq. 22 Potências ótimas dos feixes:", p_star)
+print("--Eq. 22 Valor máximo da eficiência energética:", p_max)
 
 
 #Eq.27 (Modelo Global)
@@ -246,8 +245,8 @@ def f2(I_i, I_d, N_0, W):
 f_1 = f1(p, g_t, g_ru, L, I_i, I_d, N_0, W)
 f_2 = f2(I_i, I_d, N_0, W)
 
-print(f"Valor de f1: {f_1}")
-print(f"Valor de f2: {f_2}")
+print(f"--Eq.27 Valor de f1: {f_1}")
+print(f"--Eq.28 Valor de f2: {f_2}")
 
 
 #Eq.26 (Modelo Global)
@@ -256,8 +255,8 @@ def calcular_C_p(p, f_1, f_2, W):
     for k in range(len(p)):
         C_p[k] = W * (f_1[k] - f_2[k])
     return C_p
-S_p = calcular_C_p(p, f_1, f_2, W)
-print(f"soma ponderada das diferenças entre f1(p_k) e f2(p_k): {S_p}")
+C_p = calcular_C_p(p, f_1, f_2, W)
+print(f"--Eq.26 Soma ponderada das diferenças entre f1(p_k) e f2(p_k): {C_p}")
 
 
 #Eq.25 (Modelo Global)
@@ -270,8 +269,9 @@ def grad_f2(I_i, I_d, N_0, W):
         grad_values[k] = 1 / (np.log(2) * interference)  # Derivada de log2(interference)
     
     return grad_values
+    
 gra_f2 = grad_f2(I_i, I_d, N_0, W)
-print(f"Gradiente de f2: {grad_f2}")
+print(f"--Eq.25 Gradiente de f2: {gra_f2}")
 
 def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
    
@@ -285,7 +285,7 @@ def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
     return tilde_R
 
 tilde_R = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
-print(f"Limite inferior da taxa de soma do utilizador k: {tilde_R}")
+print(f"--Limite inferior da taxa de soma do utilizador k: {tilde_R}")
 
 
 #Eq.24 (Modelo Global)
@@ -300,7 +300,7 @@ def tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0):
     return tilde_C_p_star
 
 tilde_C_p_star = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
-print(f"Capacidade de transmissão total no ponto ótimo: {tilde_C_p_star}")
+print(f"--Eq.24 Capacidade de transmissão total no ponto ótimo: {tilde_C_p_star}")
 
 
 #Eq.23 (Modelo Global)
@@ -309,7 +309,7 @@ def calcular_D(p_star, P_c, rho):
     return D_p_star
 
 D_p_star = calcular_D(p_star, P_c, rho)
-print(f"D_p_star: {D_p_star}")
+print(f"--Eq.23 D_p_star: {D_p_star}")
 
 def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
     # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
@@ -317,10 +317,10 @@ def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
     return lambda_estrela
 
 lambda_estrela = calcular_D(p_star, P_c, rho)
-print(f"Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
+print(f"--Eq.23 Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
 
 
-# Eq. 29 (Modelo Global)
+#Eq.29 (Modelo Global)
 def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
     return -(tilde_C_p_star - lambda_estrela * D_p_star)
 
@@ -353,18 +353,11 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
     return result
 
 resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
-print(f"Resultado da maximização: {resultado_max}")
-
-
-
-###################################################################################################################
+print(f"--Eq.29 Resultado da maximização: {resultado_max}")
 
 
 
 #Algoritmo 3
-
-
-
 # Inicialização
 def initialization():
     """
@@ -440,50 +433,26 @@ p_0 = initialization()
 # Executando o algoritmo de Dinkelbach
 p_star, lambda_star = dinkelbach_algorithm(p_0)
 
-print(f"Potências ótimas dos feixes: {p_star}")
-print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
+print(f"--Alg. 3 Potências ótimas dos feixes: {p_star}")
+print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambda_star}")
 
 
 
 ####################################################################################
+# Equações para algoritmo 2
 
 
-#Algoritmo 2
+# Eq. 12 (Modelo Global)
+def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
+    K = n
+    p_km = np.zeros((K, M))
 
-# Eq. 1 (Modelo Global)
-def calcular_gs_gt(theta, delta):
-    # Calcula g_t usando a primeira equação
-    gt = (2 * math.pi - (2 * math.pi - theta) * delta) / theta
+    for k in range(K):
+        for m in range(M):
+            p_km[k, m] = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
+    
+    return p_km
 
-    # Calcula g_s usando a segunda equação
-    gs = delta
-
-    return gs, gt
-
-g_s, g_t = calcular_gs_gt(theta, delta)
-print(f"gs e gt: {g_s, g_t}")
-
-
-# Eq. 3 (Modelo Global)
-
-
-# Eq. 5 (Modelo Global)
-
-
-# Eq. 4 (Modelo Global)
-
-
-# Eq. 2 (Modelo Global)
-
-
-# Eq. 6 (Modelo Global)
-
-
-# Eq. 7 (Modelo Global)
-
-
-# Eq. 8 (Modelo Global)
-
-
-# Eq. 9 (Modelo Global)
+p_km = calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M)
+print(f"p_km: \n{p_km}")

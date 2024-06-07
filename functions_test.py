@@ -7,20 +7,18 @@ from munkres import Munkres, print_matrix
 # Parâmetros
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
-v = 7.46                    # Velocidade orbital em km/s
-F_c = 20                    # Frequencia de centro em Ghz
-W = 28 * 10**6              # Largura de banda em MHz 28 (28e6 Hz)
-T_s = 1                     # Tempo de duração do símbolo em micro segundo
-micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
-sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
+v = 7.46e3                  # Velocidade orbital em m/s
+F_c = 20                  # Frequencia de centro em Ghz
+W = 28e6                    # Largura de banda em MHz 28 (28e6 Hz)
+T_s = 1e-6                  # Tempo de duração do símbolo em micro segundo
 N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 7                       # Número de feixes de antenas
 g_t = 52.1                  # Ganho da antena do satélite em dB
 g_s = 5                     # Lóbulo lateral da antena de satélite em dB
-g_k = [10, 11, 12, 13, 14, 15]      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
+g_k = [10, 11, 12, 13, 14, 15]      # Ganho da antena dos usuários, intervalo de 10 a 15.
 g_b = 5                     # Ganho da estação de base em dB
-P_f = 10                    # Potência máxima transmitida em dBw***
-P_r = -111                  # Potência de interferência admissível em dBw
+P_f = 0                     # Potência máxima transmitida em dBw***
+P_r = 10                    # Potência de interferência admissível em dBw
 P_c = 10                    # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
@@ -28,14 +26,25 @@ xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e conver
 n =  7                      # Número de celulas hexagonais
 delta = 0.35                # Ganho do lóbulo lateral
 theta = 90 * math.pi / 180  # Largura do feixe da antena de 0 a 360
+micro = -2.6             # Parâmetro de desvanecimento da chuva em dB*
+sigma =  1.6             # Parâmetro de desvanecimento da chuva em dB*
+
 
 
 # Dados de teste
+phi = np.array([0, np.pi/6, np.pi/3, np.pi/2, 2*np.pi/3, 5*np.pi/6, np.pi])     # Vetor phi com 7 posições
 L_b = 1                     # Perda de transmissão (ajuste conforme necessário)
-P_T = 30                    # Potência total de transmissão em dBw
+P_T = 10**(30/10)                    # Potência total de transmissão em dBw
 p = [0.5, 1.0, 1.5, 2.0, 2.5, 1.7, 1.3]     # Potência transmitida em cada feixe
 g_ru = [12, 14, 13, 15, 11, 10, 16]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]      # Atenuação de percurso para cada feixe
+x = np.array([[1, 0, 0, 0, 0, 0, 0], 
+              [0, 1, 0, 0, 0, 0, 0], 
+              [0, 0, 1, 0, 0, 0, 0], 
+              [0, 0, 0, 1, 0, 0, 0], 
+              [0, 0, 0, 0, 1, 0, 0], 
+              [0, 0, 0, 0, 0, 1, 0], 
+              [0, 0, 0, 0, 0, 0, 1]])        # É uma matriz variável binária que indica a atribuição do feixe.
 
 
 
@@ -87,27 +96,28 @@ print(f"largura do feixe da célula central: {theta_0}")
 
 
 #Eq. 5 (Posição Global)
-def calcular_theta_k(R, h, beta, Nc, theta_0, n):
-
-    k = n
-    return Nc * theta_0 * (R / (h + R))**k * math.sin(theta_0 / 2) / (2 * k * math.sin(beta / 2))
-
-def calcular_theta_n_individual(R, h, beta, Nc, theta_0, n):
-
-    theta_k_sum = 0
-    for k in range(1, n):
-        theta_k_sum += calcular_theta_k(R, h, beta, Nc, theta_0, k)
-    theta_n = math.atan((R * math.sin((2 * n + 1) * beta / 2)) / (h + R - R * math.cos((2 * n + 1) * beta / 2))) - theta_k_sum - (theta_0) # A útima parcela seria theta/2, mas ela já está dividido na função anterior
-    return theta_n
-
 def calcular_theta_n(R, h, beta, Nc, theta_0, n):
 
     theta_n = np.zeros(n)
     for i in range(n):
         theta_n[i] = calcular_theta_n_individual(R, h, beta, Nc, theta_0, i+1)
     return theta_n
+
+def calcular_theta_n_individual(R, h, beta, Nc, theta_0, n):
+
+    theta_k_sum = 0
+    for k in range(1, n):
+        theta_k_sum += calcular_theta_k(R, h, beta, Nc, theta_0, k)
+    theta_n = math.atan((R * math.sin((2 * n + 1) * beta / 2)) / (h + R - R * math.cos((2 * n + 1) * beta / 2))) - theta_k_sum - (theta_0 / 2)
+    return theta_n
+
+def calcular_theta_k(R, h, beta, Nc, theta_0, n):
+
+    k = n
+    return Nc * theta_0 * (R / (h + R))**k * math.sin(theta_0 / 2) / (2 * k * math.sin(beta / 2))
+
 theta_n = calcular_theta_n(R, h, beta, Nc, theta_0, n)
-print("Largura do feixe da enésima coroa para cada valor de n:", theta_n, "radianos")
+print(f"theta_n: {theta_n}")
 
 
 
@@ -123,6 +133,7 @@ def calcular_fk(v, F_c, c, theta_n, p):
         angle = theta_n[k]
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
+
 f_k = calcular_fk(v, F_c, c, theta_n, p)
 print(f"Frequência desviada associada ao k-ésimo usuário: {f_k}")
 
@@ -262,7 +273,7 @@ print(f"soma ponderada das diferenças entre f1(p_k) e f2(p_k): {S_p}")
 
 #Eq.25 (Modelo Global)
 def grad_f2(I_i, I_d, N_0, W):
-    K = len(I_i)  # Número de feixes
+    K = len(I_i)  
     grad_values = np.zeros(K)
     
     for k in range(K):
@@ -270,10 +281,12 @@ def grad_f2(I_i, I_d, N_0, W):
         grad_values[k] = 1 / (np.log(2) * interference)  # Derivada de log2(interference)
     
     return grad_values
-gra_f2 = grad_f2(I_i, I_d, N_0, W)
-print(f"Gradiente de f2: {grad_f2}")
 
-def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
+gra_f2 = grad_f2(I_i, I_d, N_0, W)
+print(f"Gradiente de f2: {gra_f2}")
+
+
+def calculate_tilde_R(gra_f2, f_1, f_2, p_0, p):
    
     K = len(p)  # Número de feixes
     tilde_R = np.zeros(K)
@@ -284,224 +297,5 @@ def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
     
     return tilde_R
 
-tilde_R = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
+tilde_R = calculate_tilde_R(gra_f2, f_1, f_2, p_0, p)
 print(f"Limite inferior da taxa de soma do utilizador k: {tilde_R}")
-
-
-#Eq.24 (Modelo Global)
-def tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0):
-
-    # Calcular as taxas de transmissão \tilde{R}_{k}(\mathbf{p}^{*}) para todos os feixes k
-    tilde_R_values = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
-
-    # Somar todas as taxas de transmissão ponderadas pela largura de banda
-    tilde_C_p_star = W * np.sum(tilde_R_values)
-
-    return tilde_C_p_star
-
-tilde_C_p_star = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
-print(f"Capacidade de transmissão total no ponto ótimo: {tilde_C_p_star}")
-
-
-#Eq.23 (Modelo Global)
-def calcular_D(p_star, P_c, rho):
-    D_p_star = P_c + (1 / rho) * sum(p_star)
-    return D_p_star
-
-D_p_star = calcular_D(p_star, P_c, rho)
-print(f"D_p_star: {D_p_star}")
-
-def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
-    # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
-    lambda_estrela = tilde_C_p_star / D_p_star
-    return lambda_estrela
-
-lambda_estrela = calcular_D(p_star, P_c, rho)
-print(f"Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
-
-
-# Eq. 29 (Modelo Global)
-def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
-    return -(tilde_C_p_star - lambda_estrela * D_p_star)
-
-def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
-    
-    # Chute inicial: igualmente distribuído entre os feixes ativos
-    initial_guess = [P_T / len(g_ru)] * len(g_ru)
-    
-    def constraint_total_power(p):
-        # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
-        return sum(p) - P_T
-
-    def constraint_individual_power(p):
-        # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
-        return p - P_f
-
-    def constraint_received_power(p):
-        # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
-        return sum(p) - P_r / (g_s * g_b * L_b)
-
-    # Definindo as restrições do problema de otimização
-    constraints = [{'type': 'ineq', 'fun': constraint_total_power},
-                   {'type': 'ineq', 'fun': constraint_individual_power},
-                   {'type': 'ineq', 'fun': constraint_received_power}]
-    
-    # Chamada para o otimizador
-    result = minimize(objetivo, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela, tilde_C_p_star, D_p_star),
-                      constraints=constraints)
-    
-    return result
-
-resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
-print(f"Resultado da maximização: {resultado_max}")
-
-
-
-#Algoritmo 3
-# Inicialização
-def initialization():
-    """
-    Inicializa o vetor de potências com valores aleatórios distribuídos entre os feixes ativos.
-    """
-    p_0 = np.random.uniform(0, P_T / len(g_ru), len(g_ru))
-    return p_0
-
-# Função objetivo para Dinkelbach
-def objetivo_dinkelbach(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n):
-    """
-    Calcula a função objetivo do algoritmo de Dinkelbach.
-    """
-    tilde_C_p = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
-    D_p = calcular_D(p_star, P_c, rho)
-    return -(tilde_C_p - lambda_n * D_p)
-
-# Otimização usando minimize
-def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
-    """
-    Resolve o problema de otimização usando a função objetivo de Dinkelbach e as restrições definidas.
-    """
-    constraints = [
-        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p)},  # Soma das potências dos feixes ativos <= potência total disponível
-        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
-        {'type': 'ineq', 'fun': lambda p: P_r - np.sum(p) * g_s * g_b * L_b}  # Soma das potências dos feixes ativos >= potência recebida mínima
-    ]
-
-    result = minimize(
-        objetivo_dinkelbach, 
-        p_0, 
-        args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n), 
-        constraints=constraints,
-        method='SLSQP'  # Usando um método específico de otimização
-    )
-
-    return result
-
-# Algoritmo de Dinkelbach
-def dinkelbach_algorithm(p_0, epsilon=1e-5):
-    """
-    Executa o algoritmo de Dinkelbach para encontrar a solução ótima.
-    """
-    lambda_n = 0  # Inicializa o parâmetro lambda
-    n = 0  # Contador de iterações
-
-    while True:
-        # Resolve o problema de otimização com o valor atual de lambda_n
-        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0)
-        p_star = result.x  # Potências ótimas encontradas
-
-        # Calcula tilde_C e D para as potências ótimas
-        tilde_C_p_star = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
-        D_p_star = calcular_D(p_star, P_c, rho)
-
-        # Calcula F(lambda_n)
-        F_lambda_n = tilde_C_p_star - lambda_n * D_p_star
-
-        # Verifica a condição de parada
-        if F_lambda_n < epsilon:
-            break
-
-        # Atualiza lambda_n e p_0 para a próxima iteração
-        lambda_n = tilde_C_p_star / D_p_star
-        p_0 = p_star
-        n += 1
-
-    return p_star, lambda_n
-
-# Inicialização
-p_0 = initialization()
-
-# Executando o algoritmo de Dinkelbach
-p_star, lambda_star = dinkelbach_algorithm(p_0)
-
-print(f"Potências ótimas dos feixes: {p_star}")
-print(f"Eficiência energética máxima alcançável no sistema: {lambda_star}")
-
-
-
-####################################################################################
-
-
-
-# Eq. 1 (Modelo Global)
-def calcular_gs_gt(theta, delta):
-    # Calcula g_t usando a primeira equação
-    gt = (2 * math.pi - (2 * math.pi - theta) * delta) / theta
-
-    # Calcula g_s usando a segunda equação
-    gs = delta
-
-    return gs, gt
-
-g_s, g_t = calcular_gs_gt(theta, delta)
-print(f"gs e gt: {g_s, g_t}")
-
-
-
-# Eq. 2 (Modelo Global)
-def calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W):
-
-    K, M = p.shape
-    gamma = np.zeros((K, M))
-    
-    for k in range(K):
-        for m in range(M):
-            numerator = p[k, m] * g_t * g_ru[k] * L[k]
-            denominator = I_i[k, m] + I_d[k, m] + N_0 * W
-            gamma[k, m] = numerator / denominator
-    
-    return gamma
-
-gamma = calcular_snr(p, g_t, g_ru, L, I_i, I_d, N_0, W)
-print(f"gamma: {gamma}")
-
-
-
-
-
-
-
-def eta(p, R, P_c, rho):
-
-    k = len(p)
-    m = len (Nc)
-
-    maXtriz_uns = np.ones((k, m))
-
-    numerator = 0
-    denominator = P_c
-
-    K = len(X)
-    M = len(X[0])
-
-    # Calcula o numerador
-    for k in range(K):
-        for m in range(M):
-            numerator += R[k] * X[k][m]
-
-    # Calcula o denominador
-    for k in range(K):
-        for m in range(M):
-            denominator += (1 / rho) * P[k][m] * X[k][m]
-
-    # Retorna a eficiência energética
-    return numerator / denominator
