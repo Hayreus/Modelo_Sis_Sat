@@ -35,7 +35,7 @@ p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
-num_usuario_por_celula = 80
+num_usuario_por_celula = 100
 
 
 
@@ -145,7 +145,7 @@ def calcular_comprimento_arco(R, psi):
 
 
 # Calcular o comprimento do arco do setor circular
-raio = (calcular_comprimento_arco(R, psi))/4
+raio = (calcular_comprimento_arco(R, psi))/6
 Raio_Total = calcular_comprimento_arco(R, psi)/2
 diametro = calcular_comprimento_arco(R, psi)
 print(f"--Raio da área de cobertura da célula: {raio:.4f} km")
@@ -158,7 +158,7 @@ print(f"--Diâmetro da área de cobertura Total: {diametro:.4f} km")
 def calcular_pontos_hexagonais(raio):
 
     angulos = np.linspace(0, 2 * np.pi, 7)[:-1]  # Divide o círculo em 6 partes iguais
-    pontos = [(2 * raio * np.cos(angulo), 2 * raio * np.sin(angulo)) for angulo in angulos]
+    pontos = [(2*raio * np.cos(angulo), 2*raio * np.sin(angulo)) for angulo in angulos]
     return pontos
 
 def gerar_pontos_no_circulo(centro, raio, num_pontos):
@@ -180,7 +180,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     todas_coordenadas = []
     
     # Adiciona o círculo central e seus pontos
-    circulo_central = plt.Circle((0, 0), raio, edgecolor='b', facecolor='none', linestyle='--')
+    circulo_central = plt.Circle((0, 0), raio*1.15, edgecolor='b', facecolor='none', linestyle='--')
     ax.add_artist(circulo_central)
     
     pontos_central = gerar_pontos_no_circulo((0, 0), raio, num_pontos_por_circulo)
@@ -191,7 +191,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     # Adiciona os círculos ao redor e seus pontos
     pontos_hexagonais = calcular_pontos_hexagonais(raio)
     for centro in pontos_hexagonais:
-        circulo = plt.Circle(centro, raio, edgecolor='r', facecolor='none', linestyle='--')
+        circulo = plt.Circle(centro, raio*1.15, edgecolor='r', facecolor='none', linestyle='--')
         ax.add_artist(circulo)
         
         pontos = gerar_pontos_no_circulo(centro, raio, num_pontos_por_circulo)
@@ -199,11 +199,10 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
         for ponto in pontos:
             ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5)
     
-    # Calcular o raio máximo para o círculo externo
-    raio_maximo = 2 * raio + raio
+  
     
     # Adiciona o círculo externo
-    circulo_externo = plt.Circle((0, 0), raio_maximo, edgecolor='g', facecolor='none', linestyle='-')
+    circulo_externo = plt.Circle((0, 0), Raio_Total, edgecolor='g', facecolor='none', linestyle='-')
     ax.add_artist(circulo_externo)
     
     # Configurações do gráfico

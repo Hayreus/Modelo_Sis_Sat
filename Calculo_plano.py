@@ -35,7 +35,7 @@ p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
-num_usuario_por_celula = 1
+num_usuario_por_celula = 100
 
 
 #Eq. 1 (Posição Global)
@@ -202,24 +202,24 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     todas_coordenadas = []
     
     # Adiciona o círculo central e seus pontos
-    circulo_central = plt.Circle((0, 0), raio, edgecolor='b', facecolor='none', linestyle='--')
+    circulo_central = plt.Circle((0, 0), raio*1.15, edgecolor='b', facecolor='none', linestyle='--')
     ax.add_artist(circulo_central)
     
     pontos_central = gerar_pontos_no_circulo((0, 0), raio, num_pontos_por_circulo)
     todas_coordenadas.extend(pontos_central)
     for ponto in pontos_central:
-        ax.plot(ponto[0], ponto[1], 'k.', alpha=0.5)
+        ax.plot(ponto[0], ponto[1], 'b.', alpha=0.6)
     
     # Adiciona os círculos ao redor e seus pontos
     pontos_hexagonais = calcular_pontos_hexagonais(raio)
     for centro in pontos_hexagonais:
-        circulo = plt.Circle(centro, raio, edgecolor='r', facecolor='none', linestyle='--')
+        circulo = plt.Circle(centro, raio*1.15, edgecolor='r', facecolor='none', linestyle='--')
         ax.add_artist(circulo)
         
         pontos = gerar_pontos_no_circulo(centro, raio, num_pontos_por_circulo)
         todas_coordenadas.extend(pontos)
         for ponto in pontos:
-            ax.plot(ponto[0], ponto[1], 'k.', alpha=0.5)
+            ax.plot(ponto[0], ponto[1], 'b.', alpha=0.6)
     
     # Calcular o raio máximo para o círculo externo
     raio_maximo = 2 * raio + raio
@@ -233,9 +233,9 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     ax.set_ylim(-4 * raio, 4 * raio)
     ax.set_aspect('equal')
     plt.grid(True)
-    plt.title("Distribuição de 7 Círculos com Pontos Aleatórios")
-    plt.xlabel("X")
-    plt.ylabel("Y")
+    plt.title("Distribuição de 7 Célulass com Usuários ou Bases Aleatórias")
+    plt.xlabel("Direção Horizontal X")
+    plt.ylabel("Direção Vertical Y")
     plt.show()
     
     return todas_coordenadas
