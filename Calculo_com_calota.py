@@ -35,7 +35,9 @@ p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
-num_usuario_por_celula = 1
+num_usuario_por_celula = 80
+
+
 
 
 #Eq. 1 (Posição Global)
@@ -123,18 +125,6 @@ print(f"--Abertura θ das células: {theta_n} radianos")
 
 
 
-def calcular_area_cobertura(R, psi):
-
-    A = 2 * np.pi * R**2 * (1 - np.cos(psi / 2))
-    return A
-
-# Calcula a área de cobertura do feixe
-Area_de_Cobertura = calcular_area_cobertura(R, psi)
-print(f"--Área de Cobertura: {Area_de_Cobertura:.4f} km²")
-
-
-
-
 def calcular_area_calota_esferica(R, psi):
 
     area_calota_esferica = 2 * math.pi * R ** 2 * (1 - math.cos(psi))
@@ -148,22 +138,6 @@ print(f"--Área da calota esférica: {area_calota_esferica:.4f} km²")
 
 
 
-def calcular_raio(Area_de_Cobertura):
-
-    raio = math.sqrt(Area_de_Cobertura / math.pi)
-    return raio
-
-
-Raio_Total = calcular_raio(Area_de_Cobertura)
-raio = (calcular_raio(Area_de_Cobertura))/2
-diametro = Raio_Total*2
-print(f"--Raio da área de cobertura da célula: {raio:.4f} km")
-print(f"--Raio da área de cobertura Total: {Raio_Total:.4f} km")
-print(f"--Diâmetro da área de cobertura Total: {diametro:.4f} km")
-
-
-
-
 def calcular_comprimento_arco(R, psi):
 
     L = R * psi
@@ -171,8 +145,12 @@ def calcular_comprimento_arco(R, psi):
 
 
 # Calcular o comprimento do arco do setor circular
-comprimento_arco = calcular_comprimento_arco(R, psi)
-print(f"--Comprimento do arco do setor circular: {comprimento_arco:.4f} km")
+raio = (calcular_comprimento_arco(R, psi))/4
+Raio_Total = calcular_comprimento_arco(R, psi)/2
+diametro = calcular_comprimento_arco(R, psi)
+print(f"--Raio da área de cobertura da célula: {raio:.4f} km")
+print(f"--Raio da área de cobertura Total: {Raio_Total:.4f} km")
+print(f"--Diâmetro da área de cobertura Total: {diametro:.4f} km")
 
 
 
@@ -208,7 +186,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     pontos_central = gerar_pontos_no_circulo((0, 0), raio, num_pontos_por_circulo)
     todas_coordenadas.extend(pontos_central)
     for ponto in pontos_central:
-        ax.plot(ponto[0], ponto[1], 'k.', alpha=0.5)
+        ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5)
     
     # Adiciona os círculos ao redor e seus pontos
     pontos_hexagonais = calcular_pontos_hexagonais(raio)
@@ -219,7 +197,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
         pontos = gerar_pontos_no_circulo(centro, raio, num_pontos_por_circulo)
         todas_coordenadas.extend(pontos)
         for ponto in pontos:
-            ax.plot(ponto[0], ponto[1], 'k.', alpha=0.5)
+            ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5)
     
     # Calcular o raio máximo para o círculo externo
     raio_maximo = 2 * raio + raio
