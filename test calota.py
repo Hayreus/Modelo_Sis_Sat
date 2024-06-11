@@ -35,7 +35,7 @@ p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
-num_usuario_por_celula = 1
+
 
 
 #Eq. 1 (Posição Global)
@@ -53,9 +53,47 @@ def calcular_psi(R, h, xi):
     psi = area / R
     return psi
 psi = calcular_psi(R, h, xi)
-print (f"--Ângulo de cobertura em radianos: {psi:.4f}")
+print (f"--Ângulo de cobertura em radianos: {psi}")
+
+import math
+
+def calcular_area_calota_esferica(R, psi):
+    """
+    Calcula a área da calota esférica com um ângulo central dado.
+    
+    Parâmetros:
+    R (float): Raio da esfera.
+    psi (float): Ângulo central da calota esférica em radianos.
+    
+    Retorna:
+    float: Área da calota esférica.
+    """
+    area_calota_esferica = 2 * math.pi * R ** 2 * (1 - math.cos(psi))
+    return area_calota_esferica
 
 
+Area_de_Cobertura = calcular_area_calota_esferica(R, psi)
+print(f"--Área de Cobertura: {Area_de_Cobertura:.2f} km²")
+
+
+def calcular_comprimento_arco(R, psi):
+    """
+    Calcula o comprimento do arco de um setor circular de raio R e ângulo central psi em radianos.
+
+    Args:
+    - R (float): Raio do setor circular.
+    - psi (float): Ângulo central do setor em radianos.
+
+    Returns:
+    - L (float): Comprimento do arco do setor circular.
+    """
+    L = R * psi
+    return L
+
+
+# Calcular o comprimento do arco do setor circular
+comprimento_arco = calcular_comprimento_arco(R, psi)
+print("--Comprimento do arco do setor circular:", comprimento_arco, "km")
 
 
 #Eq. 2 (Posição Global)
@@ -64,9 +102,7 @@ def calcular_beta(psi, n):
     
     return beta
 beta = calcular_beta(psi, n)
-print(f"--Angulo de cobertura de cada célula: {beta:.4f}")
-
-
+print(f"--Angulo de cobertura de cada célula: {beta}")
 
 
 #Eq. 3 (Posição Global)
@@ -78,8 +114,6 @@ Nc = calcular_Nc(N)
 print(f"--Número de feixes pontuais: {Nc}")
 
 
-
-
 #Eq. 4 (Posição Global)
 def calcular_theta_0(R, h, beta):
     numerador = R * math.sin(beta / 2)
@@ -88,14 +122,24 @@ def calcular_theta_0(R, h, beta):
     
     return theta_0
 theta_0 = calcular_theta_0(R, h, beta)
-print(f"--largura do feixe da célula central: {theta_0:.4f}")
-
-
+print(f"--largura do feixe da célula central: {theta_0}")
 
 
 #Eq. 5 (Posição Global)
 def calcular_theta_n(R, h, beta, theta_0, N):
+    """
+    Calcula a largura do feixe da enésima coroa de acordo com a equação fornecida.
 
+    Args:
+        R (float): Raio médio da Terra.
+        h (float): Altitude do satélite.
+        beta (float): Ângulo de cobertura de cada célula em radianos.
+        theta_0 (float): Largura do feixe da célula central em radianos.
+        N (int): Número de coroas hexagonais.
+
+    Returns:
+        numpy.ndarray: Largura do feixe para cada coroa de 0 a N em radianos.
+    """
     thetas = np.zeros(N + 1)
     for n in range(N + 1):
         if n == 0:
@@ -118,73 +162,58 @@ def calcular_theta_n(R, h, beta, theta_0, N):
 theta_n1 = calcular_theta_n(R, h, beta, theta_0, N)
 theta_n = [theta_n1[0]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2]
 
-print(f"--Abertura θ das células: {theta_n} radianos")
+print(f"--Abertura θ das células = {theta_n} radianos")
 
-
-
-
-def calcular_area_cobertura(R, psi):
-
-    A = 2 * np.pi * R**2 * (1 - np.cos(psi / 2))
-    return A
-
-# Calcula a área de cobertura do feixe
-Area_de_Cobertura = calcular_area_cobertura(R, psi)
-print(f"--Área de Cobertura: {Area_de_Cobertura:.4f} km²")
-
-
-
-
-def calcular_area_calota_esferica(R, psi):
-
-    area_calota_esferica = 2 * math.pi * R ** 2 * (1 - math.cos(psi))
-    return area_calota_esferica
-
-
-# Calcular a área da calota esférica
-area_calota_esferica = calcular_area_calota_esferica(R, psi)
-print(f"--Área da calota esférica: {area_calota_esferica:.4f} km²")
 
 
 
 
 def calcular_raio(Area_de_Cobertura):
-
+    """
+    Calcula o raio de um círculo a partir da área.
+    
+    Parâmetros:
+    area (float): A área do círculo.
+    
+    Retorna:
+    float: O raio do círculo.
+    """
     raio = math.sqrt(Area_de_Cobertura / math.pi)
     return raio
 
 
-Raio_Total = calcular_raio(Area_de_Cobertura)
-raio = (calcular_raio(Area_de_Cobertura))/2
-diametro = Raio_Total*2
-print(f"--Raio da área de cobertura da célula: {raio:.4f} km")
-print(f"--Raio da área de cobertura Total: {Raio_Total:.4f} km")
-print(f"--Diâmetro da área de cobertura Total: {diametro:.4f} km")
-
-
-
-
-def calcular_comprimento_arco(R, psi):
-
-    L = R * psi
-    return L
-
-
-# Calcular o comprimento do arco do setor circular
-comprimento_arco = calcular_comprimento_arco(R, psi)
-print(f"--Comprimento do arco do setor circular: {comprimento_arco:.4f} km")
+raio = calcular_raio(Area_de_Cobertura)
+print(f"--Raio da área de cobertura: {raio:.4f} km")
 
 
 
 
 def calcular_pontos_hexagonais(raio):
-
+    """
+    Calcula as coordenadas dos centros dos 6 círculos ao redor do círculo central.
+    
+    Parâmetros:
+    raio (float): O raio dos círculos.
+    
+    Retorna:
+    list: Uma lista de coordenadas (x, y) dos centros dos 6 círculos.
+    """
     angulos = np.linspace(0, 2 * np.pi, 7)[:-1]  # Divide o círculo em 6 partes iguais
     pontos = [(2 * raio * np.cos(angulo), 2 * raio * np.sin(angulo)) for angulo in angulos]
     return pontos
 
 def gerar_pontos_no_circulo(centro, raio, num_pontos):
-
+    """
+    Gera num_pontos aleatórios dentro de um círculo dado o centro e o raio.
+    
+    Parâmetros:
+    centro (tuple): Coordenadas (x, y) do centro do círculo.
+    raio (float): O raio do círculo.
+    num_pontos (int): Número de pontos a serem gerados.
+    
+    Retorna:
+    list: Uma lista de coordenadas (x, y) dos pontos dentro do círculo.
+    """
     pontos = []
     for _ in range(num_pontos):
         r = raio * np.sqrt(np.random.random())
@@ -195,7 +224,16 @@ def gerar_pontos_no_circulo(centro, raio, num_pontos):
     return pontos
 
 def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
-
+    """
+    Plota 7 círculos com um círculo central e 6 ao redor dele, distribuindo pontos aleatórios em cada círculo.
+    
+    Parâmetros:
+    raio (float): O raio dos círculos.
+    num_pontos_por_circulo (int): Número de pontos a serem distribuídos em cada círculo.
+    
+    Retorna:
+    list: Uma lista com as coordenadas de todos os pontos.
+    """
     fig, ax = plt.subplots()
     
     # Lista para armazenar as coordenadas de todos os pontos
@@ -240,15 +278,26 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     
     return todas_coordenadas
 
-
+num_usuario_por_celula = 7
 coordenadas_todos_usuarios = plotar_circulos_e_pontos(raio, num_usuario_por_celula)
 print(f"--Coordenada de Usuários: {coordenadas_todos_usuarios}")
 print(f"--Número Total de Usuários: {len(coordenadas_todos_usuarios)}")
 
 
 
-
-def converter_xy_para_lat_long(coordenadas_todos_usuarios, R):
+def converter_xy_para_lat_long(coordenadas_todos_usuarios):
+    """
+    Converte coordenadas x e y em latitude e longitude usando a projeção de Mercator.
+    
+    Parâmetros:
+    coordenadas (list): Lista de tuplas contendo coordenadas x e y em quilômetros.
+    
+    Retorna:
+    list: Lista de tuplas contendo as latitudes e longitudes correspondentes para cada ponto.
+    """
+    
+    # Fator de conversão de graus para radianos
+    deg_to_rad = np.pi / 180.0
     
     # Lista para armazenar as latitudes e longitudes calculadas
     coordenadas_lat_long = []
@@ -256,42 +305,69 @@ def converter_xy_para_lat_long(coordenadas_todos_usuarios, R):
     # Itera sobre cada ponto e calcula a latitude e longitude correspondentes
     for ponto in coordenadas_todos_usuarios:
         x, y = ponto
-        # Conversão de coordenadas x e y para latitude e longitude em radianos
-        latitude = np.arctan(np.sinh(y / R))
-        longitude = x / R
+        # Conversão de coordenadas x e y para latitude e longitude
+        latitude = np.arcsin(y / R) / deg_to_rad
+        longitude = np.arctan2(x, R * np.cos(latitude * deg_to_rad)) / deg_to_rad
         
         coordenadas_lat_long.append((latitude, longitude))
     
     return coordenadas_lat_long
 
+# Exemplo de uso
+coordenadas_lat_long = converter_xy_para_lat_long(coordenadas_todos_usuarios)
+print("--Coordenadas de latitude e longitude:")
+print(coordenadas_lat_long)
 
-coordenadas_lat_long = converter_xy_para_lat_long(coordenadas_todos_usuarios, R)
-print("Coordenadas em latitude e longitude (radianos):", coordenadas_lat_long)
 
 
+Rs=h
 
 
-def calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R):
+def calcular_distancias_satelite_para_pontos(coordenadas_lat_long, Rs, R, phi):
+    """
+    Calcula as distâncias entre o satélite e cada ponto especificado pelas coordenadas de latitude e longitude.
+    
+    Parâmetros:
+    coordenadas_lat_long (list): Lista de tuplas contendo as coordenadas de latitude e longitude de cada ponto.
+    Rs (float): Raio geoestacionário (km).
+    Re (float): Raio da Terra (km).
+    phi (float): Latitude da estação terrestre (graus).
+    
+    Retorna:
+    list: Lista das distâncias entre o satélite e cada ponto especificado.
+    """
+    # Converter a latitude de graus para radianos
+    phi_rad = np.radians(phi)
     
     # Lista para armazenar as distâncias para cada ponto
     distancias = []
     
+    # Coordenadas da estação terrestre
+    Re_cos_phi = R * np.cos(phi_rad)
+    Re_sin_phi = R * np.sin(phi_rad)
+    
     # Calcular a distância para cada ponto
-    for phi, lambda_ in coordenadas_lat_long:
-        # Coordenadas do ponto
-        cos_phi = np.cos(phi)
-        sin_phi = np.sin(phi)
-        cos_lambda = np.cos(lambda_)
-        sin_lambda = np.sin(lambda_)
+    for lat, long in coordenadas_lat_long:
+        # Converter a latitude e longitude de graus para radianos
+        lat_rad = np.radians(lat)
+        long_rad = np.radians(long)
         
-        # Calcular a distância usando teorema de Pitágoras (que não é dele de verdade, era dos Egípcios)
-        d2 = (R + h - R * cos_lambda * cos_phi) ** 2 + (R * sin_lambda * cos_phi) ** 2 + (R * sin_phi) ** 2
+        # Coordenadas do ponto
+        cos_lat = np.cos(lat_rad)
+        sin_lat = np.sin(lat_rad)
+        cos_long_diff = np.cos(long_rad)
+        sin_long_diff = np.sin(long_rad)
+        
+        # Calcular a distância usando a equação fornecida
+        d2 = (Rs - Re_cos_phi * cos_long_diff * cos_lat) ** 2 + (Re_sin_phi * cos_long_diff * cos_lat) ** 2 + (Re_sin_phi * sin_lat) ** 2
         distancia = np.sqrt(d2)
         distancias.append(distancia)
     
     return distancias
 
+# Exemplo de uso
 
-# Calcular distâncias
-distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)
-print(f"Distâncias para cada ponto: {distancias} Km")
+phi = 0     # Latitude da estação terrestre em graus
+
+distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, Rs, R, phi)
+print(f"--Distâncias do satélite para cada ponto: {distancias} Km")
