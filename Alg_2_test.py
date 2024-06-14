@@ -8,20 +8,20 @@ from munkres import Munkres, print_matrix
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7.46                    # Velocidade orbital em km/s
-F_c = 20                    # Frequencia de centro em Ghz
-W = 28 * 10**6               # Largura de banda em MHz 28 (28e6 Hz)
+F_c = 20e9                    # Frequencia de centro em hz
+W = 28e6              # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
-N_0 = 10**(-172/10)   # Densidade espetral do ruído em dBw/Hz para W/Hz
+N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 7                       # Número de feixes de antenas
-g_t = 10**(52.1/10)                  # Ganho da antena do satélite em dB
-g_s = 10**(5/10)                      # Lóbulo lateral da antena de satélite em dB
-g_k = [10, 11, 12, 13, 14, 15]      # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
-g_b = 10**(5/10)                      # Ganho da estação de base em dB
-P_f = 10**(10/10)                     # Potência máxima transmitida em dBw***
+g_t = 10**(52.1/10)                  # Ganho da antena do satélite em W
+g_s = 10**(5/10)                     # Lóbulo lateral da antena de satélite em dB
+g_k = [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
+g_b = 10**(5/10)                     # Ganho da estação de base em dB
+P_f = 10**(10/10)                    # Potência máxima transmitida em dBw***
 P_r = 10**(-111/10)         # Potência de interferência admissível em dBw
-P_c = 10**(10/10)                    # Dissipação de potência do circuito em dBw
+P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
@@ -30,12 +30,13 @@ N = 1                   # Número de niveis de camada hexagonais
 
 # Dados de teste
 L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
-P_T = 10**(30/10)                   # Potência total de transmissão em dBw
+P_T = 10**(30/10)                   # Potência total de transmissão em W
 p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/10), 10**(1.3/10)]     # Potência transmitida em cada feixe
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
-num_usuario_por_celula = 100
+num_usuario_por_celula = 10
+usuarios = num_usuario_por_celula * 7
 
 
 
@@ -274,47 +275,46 @@ distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R
 print(f"Distâncias para cada ponto: {distancias} Km")
 
 
+
 ############################################################################################
 # Equações para algoritmo 2 e 3
-def calcular_L_k(P_t, G_t, G_r, f, d, L, K):
+
+def calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios):
     """
     Calcula os valores de L_k para K usuários.
 
     Parâmetros:
+    - usuarios(int): Número de usuários totais
+    - c (int): Velocidade da luz em m/s
     - P_t (float): Potência de transmissão.
-    - G_t (float): Ganho da antena transmissora.
-    - G_r (float): Ganho da antena receptora.
-    - f (float): Frequência do sinal em Hz.
-    - d (list): Lista de distâncias entre o transmissor e cada receptor.
-    - L (float): Perdas adicionais do sistema.
-    - K (int): Número de usuários.
+    - g_t (float): Ganho da antena transmissora.
+    - g_k (list): Lista de possíveis ganhos da antena receptora.
+    - F_c : Frequência do sinal em Hz.
+    - d_km (list): Lista de distâncias entre o transmissor e cada receptor em km.
+    - L_b : Perdas adicionais do sistema.
     
     Retorna:
     - L_k (numpy array): Vetor contendo os valores calculados de L_k para cada usuário.
     """
-    c = 3e8  # Velocidade da luz em m/s
-    lambda_ = c / f  # Comprimento de onda
-    
+
+    lambda_ = c / F_c  # Comprimento de onda
+    K = usuarios
     L_k = np.zeros(K)
     
     for k in range(K):
-        d_k = P_t * (G_t * G_r * lambda_**2) / ((4 * np.pi * d[k])**2 * L)
+        g_k_m = np.random.choice(g_k)  # Seleciona aleatoriamente um valor de g_k da lista
+        d_m = distancias[k] * 1000  # Converte a distância de km para m
+        d_k = P_T * (g_t * g_k_m * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
         h_k = np.random.normal(0, 1) + 1j * np.random.normal(0, 1)  # Variável aleatória complexa
         L_k[k] = d_k * np.abs(h_k)**2
     
     return L_k
 
-# Exemplo de uso
-P_t = 1  # Potência de transmissão em Watts
-G_t = 10  # Ganho da antena transmissora
-G_r = 10  # Ganho da antena receptora
-f = 2.4e9  # Frequência em Hz
-d = [100, 200, 300, 400, 500, 600, 700]  # Distâncias em metros para cada usuário
-L = 1  # Perdas adicionais do sistema
-K = len(d)  # Número de usuários
 
-L_k = calcular_L_k(P_t, G_t, G_r, f, d, L, K)
-print(f"Valores de L_k: {L_k}")
+
+L_k = calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios)
+print(f"Valores de L_k para cada usuário: {L_k}")
+
 
 
 #Eq. 5 (Modelo Global)
