@@ -2,31 +2,35 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+from scipy.optimize import linprog
 from munkres import Munkres, print_matrix
 
 # Parâmetros
+N = 1                   # Número de niveis de camada hexagonais
+n =  7                     # Número de celulas hexagonais
+num_usuario_por_celula = 15
+usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
-v = 7.46                    # Velocidade orbital em km/s
+v = 7460                    # Velocidade orbital em m/s
 F_c = 20e9                    # Frequencia de centro em hz
 W = 28e6              # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
 N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
-M = 7                       # Número de feixes de antenas
+M = usuarios                       # Número de feixes
 g_t = 10**(52.1/10)                  # Ganho da antena do satélite em W
 g_s = 10**(5/10)                     # Lóbulo lateral da antena de satélite em dB
 g_k = [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
-g_b = 10**(5/10)                     # Ganho da estação de base em dB
-P_f = 10**(10/10)                    # Potência máxima transmitida em dBw***
-P_r = 10**(-111/10)         # Potência de interferência admissível em dBw
+g_b = 10**(5/10)                     # Ganho da estação de base em w
+P_f = 10**(10/10)                    # Potência máxima transmitida em w
+P_r = 10**(-111/10)         # Potência de interferência admissível em w
 P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
-n =  7                     # Número de celulas hexagonais
-N = 1                   # Número de niveis de camada hexagonais
+
 
 # Dados de teste
 L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
@@ -34,9 +38,6 @@ P_T = 10**(30/10)                   # Potência total de transmissão em W
 p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/10), 10**(1.3/10)]     # Potência transmitida em cada feixe
 g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
 L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
-
-num_usuario_por_celula = 10
-usuarios = num_usuario_por_celula * 7
 
 
 
@@ -157,13 +158,11 @@ print(f"--Diâmetro da área de cobertura Total: {diametro:.4f} km")
 
 
 def calcular_pontos_hexagonais(raio):
-
     angulos = np.linspace(0, 2 * np.pi, 7)[:-1]  # Divide o círculo em 6 partes iguais
-    pontos = [(2*raio * np.cos(angulo), 2*raio * np.sin(angulo)) for angulo in angulos]
+    pontos = [(2 * raio * np.cos(angulo), 2 * raio * np.sin(angulo)) for angulo in angulos]
     return pontos
 
 def gerar_pontos_no_circulo(centro, raio, num_pontos):
-
     pontos = []
     for _ in range(num_pontos):
         r = raio * np.sqrt(np.random.random())
@@ -174,25 +173,24 @@ def gerar_pontos_no_circulo(centro, raio, num_pontos):
     return pontos
 
 def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
-
     fig, ax = plt.subplots()
     
     # Lista para armazenar as coordenadas de todos os pontos
     todas_coordenadas = []
     
     # Adiciona o círculo central e seus pontos
-    circulo_central = plt.Circle((0, 0), raio*1.15, edgecolor='b', facecolor='none', linestyle='--')
+    circulo_central = plt.Circle((0, 0), raio * 1.15, edgecolor='r', facecolor='none', linestyle='--', label='Cobertura dos Feixes')
     ax.add_artist(circulo_central)
     
     pontos_central = gerar_pontos_no_circulo((0, 0), raio, num_pontos_por_circulo)
     todas_coordenadas.extend(pontos_central)
     for ponto in pontos_central:
-        ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5)
+        ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5, label='Usuários' if todas_coordenadas.index(ponto) == 0 else "")
     
     # Adiciona os círculos ao redor e seus pontos
     pontos_hexagonais = calcular_pontos_hexagonais(raio)
     for centro in pontos_hexagonais:
-        circulo = plt.Circle(centro, raio*1.15, edgecolor='r', facecolor='none', linestyle='--')
+        circulo = plt.Circle(centro, raio * 1.15, edgecolor='r', facecolor='none', linestyle='--')
         ax.add_artist(circulo)
         
         pontos = gerar_pontos_no_circulo(centro, raio, num_pontos_por_circulo)
@@ -200,10 +198,9 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
         for ponto in pontos:
             ax.plot(ponto[0], ponto[1], 'b.', alpha=0.5)
     
-  
-    
     # Adiciona o círculo externo
-    circulo_externo = plt.Circle((0, 0), Raio_Total, edgecolor='g', facecolor='none', linestyle='-')
+    Raio_Total = 2 * raio + raio
+    circulo_externo = plt.Circle((0, 0), Raio_Total, edgecolor='g', facecolor='none', linestyle='-', label='Cobertura do Satélite')
     ax.add_artist(circulo_externo)
     
     # Configurações do gráfico
@@ -211,14 +208,21 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     ax.set_ylim(-4 * raio, 4 * raio)
     ax.set_aspect('equal')
     plt.grid(True)
-    plt.title("Distribuição de 7 Círculos com Pontos Aleatórios")
-    plt.xlabel("X")
-    plt.ylabel("Y")
+    plt.title("Distribuição de 7 Células com Usuários ou Bases Aleatórias")
+    plt.xlabel("Direção Horizontal X")
+    plt.ylabel("Direção Vertical Y")
+    
+    # Adiciona a legenda
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys())
+    
     plt.show()
     
     return todas_coordenadas
 
 
+# Gerar e plotar as coordenadas dos usuários
 coordenadas_todos_usuarios = plotar_circulos_e_pontos(raio, num_usuario_por_celula)
 print(f"--Coordenada de Usuários: {coordenadas_todos_usuarios}")
 print(f"--Número Total de Usuários: {len(coordenadas_todos_usuarios)}")
@@ -276,26 +280,15 @@ print(f"Distâncias para cada ponto: {distancias} Km")
 
 
 
+
 ############################################################################################
+
+
+
+
 # Equações para algoritmo 2 e 3
 
 def calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios):
-    """
-    Calcula os valores de L_k para K usuários.
-
-    Parâmetros:
-    - usuarios(int): Número de usuários totais
-    - c (int): Velocidade da luz em m/s
-    - P_t (float): Potência de transmissão.
-    - g_t (float): Ganho da antena transmissora.
-    - g_k (list): Lista de possíveis ganhos da antena receptora.
-    - F_c : Frequência do sinal em Hz.
-    - d_km (list): Lista de distâncias entre o transmissor e cada receptor em km.
-    - L_b : Perdas adicionais do sistema.
-    
-    Retorna:
-    - L_k (numpy array): Vetor contendo os valores calculados de L_k para cada usuário.
-    """
 
     lambda_ = c / F_c  # Comprimento de onda
     K = usuarios
@@ -311,22 +304,177 @@ def calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios):
     return L_k
 
 
-
 L_k = calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios)
-print(f"Valores de L_k para cada usuário: {L_k}")
+print(f"--Potência recebida a uma distância (em watts, W): {L_k}")
+
 
 
 
 #Eq. 5 (Modelo Global)
-def calcular_fk(v, F_c, c, theta_n, n):
-    K = n
+def calcular_phi_k(coordenadas_lat_long, lat_sat=0, lon_sat=0):
+    """
+    Calcula os valores de phi_k para cada ponto de uma lista de coordenadas.
+
+    Parâmetros:
+    - coordenadas_lat_long (list): Lista de tuplas contendo as coordenadas de latitude e longitude de cada ponto em radianos.
+    - lat_sat (float): Latitude do satélite em radianos (padrão: 0).
+    - lon_sat (float): Longitude do satélite em radianos (padrão: 0).
+
+    Retorna:
+    - phi_k_list (numpy array): Lista contendo os valores calculados de phi_k para cada ponto.
+    """
+    
+    # Coordenadas do satélite em cartesianas
+    x_sat = np.cos(lat_sat) * np.cos(lon_sat)
+    y_sat = np.cos(lat_sat) * np.sin(lon_sat)
+    z_sat = np.sin(lat_sat)
+    
+    # Lista para armazenar os valores de phi_k
+    phi_k_list = []
+    
+    for lat_k, lon_k in coordenadas_lat_long:
+        # Coordenadas do ponto k em cartesianas
+        x_k = np.cos(lat_k) * np.cos(lon_k)
+        y_k = np.cos(lat_k) * np.sin(lon_k)
+        z_k = np.sin(lat_k)
+        
+        # Vetor do satélite para o ponto k
+        delta_x = x_k - x_sat
+        delta_y = y_k - y_sat
+        delta_z = z_k - z_sat
+        
+        # Magnitude dos vetores
+        mag_sat = np.sqrt(x_sat**2 + y_sat**2 + z_sat**2)
+        mag_k = np.sqrt(delta_x**2 + delta_y**2 + delta_z**2)
+        
+        # Produto escalar
+        dot_product = x_sat * delta_x + y_sat * delta_y + z_sat * delta_z
+        
+        # Calcular cos(phi_k)
+        cos_phi_k = dot_product / (mag_sat * mag_k)
+        
+        # Calcular phi_k e adicionar à lista
+        phi_k = np.arccos(cos_phi_k)
+        phi_k_list.append(phi_k)
+    
+    return np.array(phi_k_list)
+
+
+phi_k_list = calcular_phi_k(coordenadas_lat_long)
+print(f"--phi_k para cada ponto: {phi_k_list} radianos")
+
+
+
+
+# Função para calcular f_k
+def calcular_fk(v, F_c, c, phi_k_list, usuarios):
+
+    K = usuarios
     f_k = []
     for k in range(K):
-        angle = theta_n[k]
+        angle = phi_k_list[k]
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
-f_k = calcular_fk(v, F_c, c, theta_n, n)
+
+
+# Calcular f_k
+f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
 print(f"--Eq. 5 Frequência desviada associada ao k-ésimo usuário: {f_k}")
+
+
+
+
+#Eq.34 (Modelo Global)
+def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
+
+    pe1 = P_f
+    pe2 = P_T / M
+    pe3 = P_r / (g_s * g_b * L_b * M)
+    
+    # Calcula o valor mínimo entre os três candidatos
+    pe0 = min(pe1, pe2, pe3)
+    
+    return pe0
+
+
+def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
+    """
+    Resolve o problema de otimização de eficiência energética para sistemas de comunicação por satélite.
+    
+    Args:
+    K (int): Número de usuários.
+    M (int): Número de feixes.
+    P_T (float): Potência total disponível.
+    P_f (float): Potência máxima por feixe.
+    P_r_p (float): Limite de interferência.
+    g_s (float): Ganho da antena do satélite.
+    g_b (float): Ganho da antena da base.
+    L_b (float): Atenuação.
+    
+    Returns:
+    dict: Resultados da otimização.
+    """
+    # Calcula p_e0
+    p_e0 = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+    
+    # Definindo a função objetivo (a ser maximizada, mas linprog minimiza, então invertemos o sinal)
+    c = -np.ones(K * M)  # Maximizar η(X, p_e) onde η é proporcional ao número de alocações
+    
+    # Definindo as restrições
+    A_eq = np.zeros((K + M + 1, K * M))
+    b_eq = np.zeros(K + M + 1)
+    
+    # Restrição 32d: Cada usuário pode ser alocado a no máximo um feixe
+    for k in range(K):
+        for m in range(M):
+            A_eq[k, k * M + m] = 1
+        b_eq[k] = 1
+    
+    # Restrição 32e: Cada feixe pode atender no máximo um usuário de cada vez
+    for m in range(M):
+        for k in range(K):
+            A_eq[K + m, k * M + m] = 1
+        b_eq[K + m] = 1
+    
+    # Restrição 32f: Número total de alocações não pode exceder M
+    for k in range(K):
+        for m in range(M):
+            A_eq[K + M, k * M + m] = 1
+    b_eq[K + M] = M
+    
+    # Definindo as desigualdades
+    A_ub = np.zeros((1, K * M))
+    b_ub = np.zeros(1)
+    
+    # Restrição 32a: Potência total alocada deve ser menor ou igual a P_T
+    for k in range(K):
+        for m in range(M):
+            A_ub[0, k * M + m] = p_e0
+    b_ub[0] = P_T
+    
+    # Resolvendo o problema de otimização
+    result = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=(0, 1), method='highs')
+    
+    # Organizando o resultado
+    if result.success:
+        allocation_matrix = result.x.reshape((K, M))
+        return {
+            "success": result.success,
+            "allocation_matrix": allocation_matrix,
+            "p_e0": p_e0,
+            "fun": -result.fun  # Inverter o sinal de volta, pois minimizamos -η
+        }
+    else:
+        return {
+            "success": result.success,
+            "message": result.message
+        }
+
+
+p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+print(f"--Eq.34 Valores iniciais de potência: {p_e}")
+
+
 
 
 #Eq.21 (Modelo Global)
