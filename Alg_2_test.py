@@ -22,7 +22,12 @@ N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = usuarios                       # Número de feixes
 g_t = 10**(52.1/10)                  # Ganho da antena do satélite em W
 g_s = 10**(5/10)                     # Lóbulo lateral da antena de satélite em dB
-g_ru = [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
+g_ru = [10**(10/10),
+        10**(11/10),
+        10**(12/10),
+        10**(13/10),
+        10**(14/10),
+        10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 10**(5/10)                     # Ganho da estação de base em w
 P_f = 10**(10/10)                    # Potência máxima transmitida em w
 P_r = 10**(-111/10)         # Potência de interferência admissível em w
@@ -35,7 +40,6 @@ xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e conver
 # Dados de teste
 L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
 P_T = 10**(30/10)                   # Potência total de transmissão em W
-p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/10), 10**(1.3/10)]     # Potência transmitida em cada feixe
 
 
 
@@ -386,22 +390,7 @@ def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
 
 def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
-    """
-    Resolve o problema de otimização de eficiência energética para sistemas de comunicação por satélite.
-    
-    Args:
-    K (int): Número de usuários.
-    M (int): Número de feixes.
-    P_T (float): Potência total disponível.
-    P_f (float): Potência máxima por feixe.
-    P_r_p (float): Limite de interferência.
-    g_s (float): Ganho da antena do satélite.
-    g_b (float): Ganho da antena da base.
-    L_b (float): Atenuação.
-    
-    Returns:
-    dict: Resultados da otimização.
-    """
+
     # Calcula p_e0
     p_e0 = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
     
@@ -513,7 +502,7 @@ def calcular_eta(p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, M):
         C_p += W * math.log2(1 + numerator / denominator)
     
     # Calcula o denominador da eficiência energética
-    D_p = P_c + (1 / rho) * sum(p)
+    D_p = P_c + (1 / rho) * p_e * M
     
     # Calcula a eficiência energética como a razão entre o numerador e o denominador
     eta = C_p / D_p
@@ -528,8 +517,10 @@ print(f"--Eq.19 Eficiência Energética Calculada (W): {eta}")
 
 
 #Eq. 22 (Modelo Global)
+
 # Definição da função objetivo (Eq. 22 - Modelo Global)
 def objective(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M):
+    p_e = np.full(M, p_e)
     selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
     num = np.sum([W * np.log2(1 + (p_e[k] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(M)])
     denom = P_c + (1 / rho) * np.sum(p_e)
@@ -651,24 +642,24 @@ def calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M):
 
 
 tilde_R = calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M)
-print(f"--Limite inferior da taxa de soma do utilizador k: {tilde_R}")
+print(f"--Eq.25 Limite inferior da taxa de soma do utilizador k: {tilde_R}")
 
 
 
 
 #Eq.24 (Modelo Global)
-def tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0):
-
-    # Calcular as taxas de transmissão \tilde{R}_{k}(\mathbf{p}^{*}) para todos os feixes k
-    tilde_R_values = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
+def tilde_C(tilde_R, W):
 
     # Somar todas as taxas de transmissão ponderadas pela largura de banda
-    tilde_C_p_star = W * np.sum(tilde_R_values)
+    tilde_C_p_star = W * np.sum(tilde_R)
 
     return tilde_C_p_star
 
-tilde_C_p_star = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
+
+tilde_C_p_star = tilde_C(tilde_R, W)
 print(f"--Eq.24 Capacidade de transmissão total no ponto ótimo: {tilde_C_p_star}")
+
+
 
 
 #Eq.23 (Modelo Global)
@@ -676,38 +667,45 @@ def calcular_D(p_star, P_c, rho):
     D_p_star = P_c + (1 / rho) * sum(p_star)
     return D_p_star
 
+
 D_p_star = calcular_D(p_star, P_c, rho)
 print(f"--Eq.23 D_p_star: {D_p_star}")
+
+
+
 
 def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
     # Calcula lambda* como a razão entre a capacidade de transmissão total e a potência total consumida
     lambda_estrela = tilde_C_p_star / D_p_star
     return lambda_estrela
 
+
 lambda_estrela = calcular_D(p_star, P_c, rho)
 print(f"--Eq.23 Eficiência energética máxima alcançável no sistema: {lambda_estrela}")
 
 
+
+
 #Eq.29 (Modelo Global)
-def objetivo(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
+def objetivo(p_e_1, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
     return -(tilde_C_p_star - lambda_estrela * D_p_star)
 
-def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
+def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
     
     # Chute inicial: igualmente distribuído entre os feixes ativos
     initial_guess = [P_T / len(g_ru)] * len(g_ru)
     
-    def constraint_total_power(p):
+    def constraint_total_power(p_e_1):
         # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
-        return sum(p) - P_T
-
-    def constraint_individual_power(p):
+        return sum(p_e_1) - P_T
+    
+    def constraint_individual_power(p_e_1):
         # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
-        return p - P_f
+        return p_e_1 - P_f
 
-    def constraint_received_power(p):
+    def constraint_received_power(p_e_1):
         # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
-        return sum(p) - P_r / (g_s * g_b * L_b)
+        return sum(p_e_1) - P_r / (g_s * g_b * L_b)
 
     # Definindo as restrições do problema de otimização
     constraints = [{'type': 'ineq', 'fun': constraint_total_power},
@@ -715,13 +713,19 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, 
                    {'type': 'ineq', 'fun': constraint_received_power}]
     
     # Chamada para o otimizador
-    result = minimize(objetivo, initial_guess, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela, tilde_C_p_star, D_p_star),
+    result = minimize(objetivo, initial_guess, args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela, tilde_C_p_star, D_p_star),
                       constraints=constraints)
     
     return result
 
-resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
+resultado_max = resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela)
 print(f"--Eq.29 Resultado da maximização: {resultado_max}")
+
+
+
+
+#######################################################################################################################################
+
 
 
 
@@ -731,15 +735,15 @@ def initialization():
     """
     Inicializa o vetor de potências com valores aleatórios distribuídos entre os feixes ativos.
     """
-    p_0 = np.random.uniform(0, P_T / len(g_ru), len(g_ru))
+    p_0 = np.random.uniform(0, P_T / M, M)
     return p_0
 
 # Função objetivo para Dinkelbach
-def objetivo_dinkelbach(p, W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n):
+def objetivo_dinkelbach(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n):
     """
     Calcula a função objetivo do algoritmo de Dinkelbach.
     """
-    tilde_C_p = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
+    tilde_C_p = tilde_C(tilde_R, W)
     D_p = calcular_D(p_star, P_c, rho)
     return -(tilde_C_p - lambda_n * D_p)
 
@@ -749,15 +753,15 @@ def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
     Resolve o problema de otimização usando a função objetivo de Dinkelbach e as restrições definidas.
     """
     constraints = [
-        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p)},  # Soma das potências dos feixes ativos <= potência total disponível
-        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
-        {'type': 'ineq', 'fun': lambda p: P_r - np.sum(p) * g_s * g_b * L_b}  # Soma das potências dos feixes ativos >= potência recebida mínima
+        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p_e)},  # Soma das potências dos feixes ativos <= potência total disponível
+        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p_e)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
+        {'type': 'ineq', 'fun': lambda p: P_r - np.sum(p_e) * g_s * g_b * L_b}  # Soma das potências dos feixes ativos >= potência recebida mínima
     ]
 
     result = minimize(
         objetivo_dinkelbach, 
         p_0, 
-        args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho, lambda_n), 
+        args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n), 
         constraints=constraints,
         method='SLSQP'  # Usando um método específico de otimização
     )
@@ -778,7 +782,7 @@ def dinkelbach_algorithm(p_0, epsilon=1e-5):
         p_star = result.x  # Potências ótimas encontradas
 
         # Calcula tilde_C e D para as potências ótimas
-        tilde_C_p_star = tilde_C(p_star, g_t, g_ru, L, I_i, I_d, N_0, W, p_0)
+        tilde_C_p_star = tilde_C(tilde_R, W)
         D_p_star = calcular_D(p_star, P_c, rho)
 
         # Calcula F(lambda_n)
@@ -806,17 +810,19 @@ print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambd
 
 
 
+
 ####################################################################################
+
+
+
+
 # Equações para algoritmo 2
-
-
 # Eq. 12 (Modelo Global)
 def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
-    K = n
-    p_km = np.zeros((K, M))
+    p_km = np.zeros((M, M))
 
-    for k in range(K):
+    for k in range(M):
         for m in range(M):
             p_km[k, m] = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
     
