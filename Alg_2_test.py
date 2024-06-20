@@ -817,7 +817,7 @@ print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambd
 
 
 # Equações para algoritmo 2
-# Eq. 12 (Modelo Global)
+# Eq.12 (Modelo Global)
 def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
     p_km = np.zeros((M, M))
@@ -828,5 +828,5 @@ def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
     
     return p_km
 
-p_km = calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M)
-print(f"p_km: \n{p_km}")
+p_k_m = calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M)
+print(f"--Eq.12 Valores iniciais de potência de transmissão na primeira iteração (p_k_m): {p_k_m}")
