@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from scipy.optimize import linprog
+from scipy.optimize import linear_sum_assignment
 from munkres import Munkres, print_matrix
 
 # Parâmetros
 N = 1                   # Número de niveis de camada hexagonais
 n =  7                     # Número de celulas hexagonais
-num_usuario_por_celula = 15
+num_usuario_por_celula = 3
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
@@ -811,22 +812,123 @@ print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambd
 
 
 
+
 ####################################################################################
 
 
 
 
+p_r = np.full(M, p_e)  # Criando vetor de potencias.
+
 # Equações para algoritmo 2
 # Eq.12 (Modelo Global)
-def calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
-    p_km = np.zeros((M, M))
-
-    for k in range(M):
-        for m in range(M):
-            p_km[k, m] = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
-    
+# Função para calcular p_km para cada subportadora e usuário
+def calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M):
+    P_eq = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
+    p_km = np.full((M, M), P_eq)
     return p_km
 
-p_k_m = calcular_p_km(P_f, P_T, P_r, g_s, g_b, L_b, M)
-print(f"--Eq.12 Valores iniciais de potência de transmissão na primeira iteração (p_k_m): {p_k_m}")
+
+
+# Eq.16 (Modelo Global)
+# Função para calcular I_km^i
+def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km):
+    I_ki = np.zeros((M, M))
+    for k in range(M):
+        for m in range(M):
+            selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+            interferencia = g_s * selected_g_ru* L_k[k] * np.sum(p_km[:, m] * (1 - x_km[:, m]))
+            I_ki[k, m] = interferencia
+    return I_ki
+
+
+
+# Eq.17 (Modelo Global)
+# Função para calcular q_km
+def calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0):
+    q_km = np.zeros((M, M))
+    denominador = P_c + (1 / rho) * np.sum(p_km)
+    for k in range(M):
+        for m in range(M):
+            selected_g_ru = np.random.choice(g_ru)
+            numerador = W * np.log2(1 + (p_km[k, m] * g_t * selected_g_ru * L_k[k]) / (I_ki[k, m] + I_d[m] + N_0 * W))
+            q_km[k, m] = numerador / denominador
+    return q_km
+
+
+
+
+# Eq.18 (Modelo Global)
+# Função para otimização de X
+def otimizar_X(q_km, M):
+    # Convertendo o problema de maximização para minimização
+    cost_matrix = -q_km
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    
+    X = np.zeros((M, M))
+    X[row_ind, col_ind] = 1
+    return X
+
+
+
+# Eq.15 (Modelo Global)
+# Função para calcular eta(X)
+def calcular_eta(X, W, P_c, rho, p, g_t, g_ru, L_k, I_ki, I_d, N_0):
+    selected_g_ru = np.random.choice(g_ru)
+    numerator = np.sum(W * np.log2(1 + p * g_t * selected_g_ru * L_k / (I_ki + I_d + N_0 * W)) * X)
+    denominator = P_c + (1 / rho) * np.sum(p)
+    eta = numerator / denominator
+    return eta
+
+
+
+
+# Função iterativa para otimização conjunta
+def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_k_ru, L_k, I_d, N_0, max_iter=10, tol=1e-3):
+    # Inicializar X com uma alocação inicial (pode ser aleatória ou baseada em heurística)
+    X = np.zeros((M, M))
+    for k in range(M):
+        X[k, k % M] = 1
+
+    for iteration in range(max_iter):
+        # Calcular p_km
+        p_km = calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M)
+
+        # Calcular I_ki
+        I_ki = calcular_I_ki(g_s, g_k_ru, L_k, p_km, X)
+
+        # Calcular q_km
+        q_km = calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
+
+        # Calcular eta(X)
+        eta = calcular_eta(X, W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
+        print(f'Iteration {iteration}: eta = {eta}')
+
+        # Otimizar X
+        X_new = otimizar_X(q_km, M)
+
+        # Verificar convergência
+        if np.allclose(X, X_new, atol=tol):
+            print(f'Converged after {iteration} iterations')
+            break
+
+        X = X_new
+
+    return X, p_km, I_ki, q_km
+
+
+
+
+# Otimização iterativa
+X, p_km, I_ki, q_km = otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_s, g_ru, L_k, I_d, N_0)
+
+
+print("p_km:")
+print(p_km)
+print("I_ki:")
+print(I_ki)
+print("q_km:")
+print(q_km)
+print("X otimizado:")
+print(X)
