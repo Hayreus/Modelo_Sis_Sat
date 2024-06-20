@@ -22,7 +22,7 @@ N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = usuarios                       # Número de feixes
 g_t = 10**(52.1/10)                  # Ganho da antena do satélite em W
 g_s = 10**(5/10)                     # Lóbulo lateral da antena de satélite em dB
-g_k = [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
+g_ru = [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 10**(5/10)                     # Ganho da estação de base em w
 P_f = 10**(10/10)                    # Potência máxima transmitida em w
 P_r = 10**(-111/10)         # Potência de interferência admissível em w
@@ -36,8 +36,6 @@ xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e conver
 L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
 P_T = 10**(30/10)                   # Potência total de transmissão em W
 p = [10**(0.5/10), 10**(1/10), 10**(1.5/10), 10**(2/10), 10**(2.5/10), 10**(1.7/10), 10**(1.3/10)]     # Potência transmitida em cada feixe
-g_ru = [10**(10/10), 10**(15/10), 10**(16/10), 10**(10/10), 10**(9/10), 10**(14/10), 10**(13/10)]         # Ganho da antena dos usuários em dB
-L = [1e-3, 2e-3, 1.5e-3, 1e-3, 2e-3, 2e-3, 1.7e-3]  # Atenuação de percurso para cada feixe
 
 
 
@@ -288,14 +286,15 @@ print(f"Distâncias para cada ponto: {distancias} Km")
 
 # Equações para algoritmo 2 e 3
 
-def calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios):
+#Eq.52 (Modelo Global)
+def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios):
 
     lambda_ = c / F_c  # Comprimento de onda
     K = usuarios
     L_k = np.zeros(K)
     
     for k in range(K):
-        g_k_m = np.random.choice(g_k)  # Seleciona aleatoriamente um valor de g_k da lista
+        g_k_m = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_k da lista
         d_m = distancias[k] * 1000  # Converte a distância de km para m
         d_k = P_T * (g_t * g_k_m * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
         h_k = np.random.normal(0, 1) + 1j * np.random.normal(0, 1)  # Variável aleatória complexa
@@ -304,7 +303,7 @@ def calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios):
     return L_k
 
 
-L_k = calcular_L_k(c, P_T, g_t, g_k, F_c, distancias, L_b, usuarios)
+L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios)
 print(f"--Potência recebida a uma distância (em watts, W): {L_k}")
 
 
@@ -312,17 +311,6 @@ print(f"--Potência recebida a uma distância (em watts, W): {L_k}")
 
 #Eq. 5 (Modelo Global)
 def calcular_phi_k(coordenadas_lat_long, lat_sat=0, lon_sat=0):
-    """
-    Calcula os valores de phi_k para cada ponto de uma lista de coordenadas.
-
-    Parâmetros:
-    - coordenadas_lat_long (list): Lista de tuplas contendo as coordenadas de latitude e longitude de cada ponto em radianos.
-    - lat_sat (float): Latitude do satélite em radianos (padrão: 0).
-    - lon_sat (float): Longitude do satélite em radianos (padrão: 0).
-
-    Retorna:
-    - phi_k_list (numpy array): Lista contendo os valores calculados de phi_k para cada ponto.
-    """
     
     # Coordenadas do satélite em cartesianas
     x_sat = np.cos(lat_sat) * np.cos(lon_sat)
@@ -472,49 +460,55 @@ def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
 
 
 p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
-print(f"--Eq.34 Valores iniciais de potência: {p_e}")
+print(f"--Eq.34 Valor inicial de potência (p_e): {p_e}")
+
 
 
 
 
 #Eq.21 (Modelo Global)
-def calcular_I_d(p, g_t, g_ru, L, f_k, T_s):
-    I_d = [0] * len(p)
+def calculate_I_d(p_e, g_t, g_ru, L_k, f_k, T_s, M):
 
-    for k in range(len(p)):
-        # Calcula o termo sinc(f_k * T_s)
-        sinc_term = math.sin(math.pi * f_k[k] * T_s) / (math.pi * f_k[k] * T_s) if f_k[k] * T_s != 0 else 1
-        
-        # Calcula a interferência externa para o feixe k
-        I_d[k] = p[k] * g_t * g_ru[k] * L[k] * (1 - sinc_term**2)
-    
+    I_d = np.zeros(M)
+    for k in range(M):
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+        I_d[k] = p_e * g_t * selected_g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
     return I_d
-I_d = calcular_I_d(p, g_t, g_ru, L, f_k, T_s)
-print(f"--Eq.21 Interferência de outras fontes: {I_d}")
+
+
+I_d = calculate_I_d(p_e, g_t, g_ru, L_k, f_k, T_s, M)
+print(f"--Eq.21 Interferência Doppler (I_d): {I_d}")
+
+
 
 
 #Eq.20 (Modelo Global)
-def calcular_I_i(p, g_s, g_ru, L):
-    I_i = [0] * len(p)
+def calcular_I_i(p_e, g_s, g_ru, L_k, M):
+
+    I_i = np.zeros(M)
     
-    for k in range(len(p)):
-        # Calcula a interferência interna para o feixe k
-        I_i[k] = g_s * g_ru[k] * L[k] * sum(p[k_prime] for k_prime in range(len(p)) if k_prime != k)
-    
+    for k in range(M):
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+        sum_p_k_prime = p_e * np.sum([1 if k_prime != k else 0 for k_prime in range(M)])
+        I_i[k] = g_s * selected_g_ru * L_k[k] * sum_p_k_prime
+        
     return I_i
-I_i = calcular_I_i(p, g_s, g_ru, L)
-print(f"--Eq.20 Lista de interferências internas para cada feixe: {I_i}")
+
+
+I_i = calcular_I_i(p_e, g_s, g_ru, L_k, M)
+print(f"-- Eq.20 Lista de interferências internas para cada feixe (I_i): {I_i}")
+
+
 
 
 #Eq.19 (Modelo Global)
-def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
-
-    K = len(p)  # Número de feixes
+def calcular_eta(p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, M):
     
     # Calcula o numerador da eficiência energética
     C_p = 0
-    for k in range(K):
-        numerator = p[k] * g_t * g_ru[k] * L[k]
+    for k in range(M):
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+        numerator = p_e * g_t * selected_g_ru * L_k[k]
         denominator = I_i[k] + I_d[k] + N_0 * W
         C_p += W * math.log2(1 + numerator / denominator)
     
@@ -525,59 +519,71 @@ def calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0):
     eta = C_p / D_p
     
     return eta
-eta = calcular_eta(p, P_c, rho, W, g_t, g_ru, L, I_i, I_d, N_0)
+
+
+eta = calcular_eta(p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, M)
 print(f"--Eq.19 Eficiência Energética Calculada (W): {eta}")
 
 
+
+
 #Eq. 22 (Modelo Global)
-def objective(p, W, g_t, g_ru, L, I_i, I_d, N0, P_c, rho):
-    num = np.sum([W * np.log2(1 + (p[k] * g_t * g_ru[k] * L[k]) / (I_i[k] + I_d[k] + N0 * W)) for k in range(len(p))])
-    denom = P_c + (1 / rho) * np.sum(p)
+# Definição da função objetivo (Eq. 22 - Modelo Global)
+def objective(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M):
+    selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+    num = np.sum([W * np.log2(1 + (p_e[k] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(M)])
+    denom = P_c + (1 / rho) * np.sum(p_e)
     return -num / denom  # Negativo porque estamos maximizando
 
 # Restrições
-def constraint1(p, P_T):
-    return P_T - np.sum(p)
+def constraint1(p_e, P_T):
+    return P_T - np.sum(p_e)
 
-def constraint2(p, P_f):
-    return P_f - np.max(p)
+def constraint2(p_e, P_f):
+    return P_f - np.max(p_e)
 
-def constraint3(p, P_r, g_s, g_b, L_b):
-    return P_r - np.sum(p) * g_s * g_b * L_b
-
-# Número de feixes ativos
-A = len(g_ru)
+def constraint3(p_e, P_r, g_s, g_b, L_b):
+    return P_r - np.sum(p_e) * g_s * g_b * L_b
 
 # Inicialização das potências (valores iniciais)
-p_0 = np.ones(A) * (P_T / A)
+p_0 = np.ones(M) * (P_T / M)
+
+# Definição dos argumentos das restrições
+args_con1 = (P_T,)
+args_con2 = (P_f,)
+args_con3 = (P_r, g_s, g_b, L_b)
 
 # Definição das restrições
-con1 = {'type': 'ineq', 'fun': constraint1, 'args': (P_T,)}
-con2 = {'type': 'ineq', 'fun': constraint2, 'args': (P_f,)}
-con3 = {'type': 'ineq', 'fun': constraint3, 'args': (P_r, g_s, g_b, L_b)}
+con1 = {'type': 'ineq', 'fun': constraint1, 'args': args_con1}
+con2 = {'type': 'ineq', 'fun': constraint2, 'args': args_con2}
+con3 = {'type': 'ineq', 'fun': constraint3, 'args': args_con3}
 cons = [con1, con2, con3]
 
 # Limites para as potências
-bounds = [(0, P_f) for _ in range(A)]
+bounds = [(0, P_f) for _ in range(M)]
 
 # Resolução do problema de otimização
-solution = minimize(objective, p_0, args=(W, g_t, g_ru, L, I_i, I_d, N_0, P_c, rho),
+solution = minimize(objective, p_0, args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M),
                     method='SLSQP', bounds=bounds, constraints=cons)
 
 # Potências ótimas
 p_max = -solution.fun
 p_star = solution.x
 
-print("--Eq. 22 Potências ótimas dos feixes:", p_star)
-print("--Eq. 22 Valor máximo da eficiência energética:", p_max)
+print("-- Eq. 22 Potências ótimas dos feixes:", p_star)
+print("-- Eq. 22 Valor máximo da eficiência energética:", p_max)
+
+
 
 
 #Eq.27 (Modelo Global)
-def f1(p, g_t, g_ru, L, I_i, I_d, N_0, W):
-    f1_values = np.zeros(len(p))
+def f1(p_e, g_t, g_ru, L_k, I_i, I_d, N_0, W, M):
+
+    f1_values = np.zeros(M)
     
-    for k in range(len(p)):
-        numerator = p[k] * g_t * g_ru[k] * L[k]
+    for k in range(M):
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+        numerator = p_e * g_t * selected_g_ru * L_k[k]
         denominator = I_i[k] + I_d[k] + N_0 * W
         f1_values[k] = np.log2(1 + numerator / denominator)
     
@@ -585,58 +591,69 @@ def f1(p, g_t, g_ru, L, I_i, I_d, N_0, W):
 
 
 #Eq.28 (Modelo Global)
-def f2(I_i, I_d, N_0, W):
-    f2_values = np.zeros(len(I_i))
-    
-    for k in range(len(I_i)):
+def f2(I_i, I_d, N_0, W, M):
+
+    f2_values = np.zeros(M)
+
+    for k in range(M):
         interference = I_i[k] + I_d[k] + N_0 * W
         f2_values[k] = np.log2(interference)
     
     return f2_values
-f_1 = f1(p, g_t, g_ru, L, I_i, I_d, N_0, W)
-f_2 = f2(I_i, I_d, N_0, W)
+
+
+f_1 = f1(p_e, g_t, g_ru, L_k, I_i, I_d, N_0, W, M)
+f_2 = f2(I_i, I_d, N_0, W, M)
 
 print(f"--Eq.27 Valor de f1: {f_1}")
 print(f"--Eq.28 Valor de f2: {f_2}")
 
 
+
+
 #Eq.26 (Modelo Global)
-def calcular_C_p(p, f_1, f_2, W):
-    C_p = np.zeros(len(p))
-    for k in range(len(p)):
+def calcular_C_p(f_1, f_2, W, M):
+    C_p = np.zeros(M)
+    for k in range(M):
         C_p[k] = W * (f_1[k] - f_2[k])
     return C_p
-C_p = calcular_C_p(p, f_1, f_2, W)
+
+
+C_p = calcular_C_p(f_1, f_2, W, M)
 print(f"--Eq.26 Soma ponderada das diferenças entre f1(p_k) e f2(p_k): {C_p}")
 
 
+
+
 #Eq.25 (Modelo Global)
-def grad_f2(I_i, I_d, N_0, W):
-    K = len(I_i)  # Número de feixes
-    grad_values = np.zeros(K)
-    
-    for k in range(K):
-        interference = I_i[k] + I_d[k] + N_0 * W
-        grad_values[k] = 1 / (np.log(2) * interference)  # Derivada de log2(interference)
-    
+def grad_f2(I_i, I_d, N_0, W, M):
+
+    f2_values = f2(I_i, I_d, N_0, W, M)
+    grad_values = np.gradient(f2_values)
     return grad_values
     
-gra_f2 = grad_f2(I_i, I_d, N_0, W)
+
+gra_f2 = grad_f2(I_i, I_d, N_0, W, M)
 print(f"--Eq.25 Gradiente de f2: {gra_f2}")
 
-def calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W):
+
+
+
+def calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M):
    
-    K = len(p)  # Número de feixes
-    tilde_R = np.zeros(K)
+    tilde_R = np.zeros(M)
     
-    for k in range(K):
-        gradient_term = gra_f2[k] * (p[k] - p_0[k])
+    for k in range(M):
+        gradient_term = gra_f2[k] * (p_e - p_0[k])
         tilde_R[k] = f_1[k] - (f_2[k] - gradient_term)
     
     return tilde_R
 
-tilde_R = calculate_tilde_R(p, p_0, g_t, g_ru, L, I_i, I_d, N_0, W)
+
+tilde_R = calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M)
 print(f"--Limite inferior da taxa de soma do utilizador k: {tilde_R}")
+
+
 
 
 #Eq.24 (Modelo Global)
