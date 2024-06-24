@@ -40,7 +40,7 @@ xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e conver
 
 # Dados de teste
 L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
-P_T = 10**(30/10)                   # Potência total de transmissão em W
+P_T = 10**(50/10)                   # Potência total de transmissão em W
 
 
 
@@ -812,17 +812,14 @@ print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambd
 
 
 
-
 ####################################################################################
 
-
+# Equações para algoritmo 2
 
 
 p_r = np.full(M, p_e)  # Criando vetor de potencias.
 
-# Equações para algoritmo 2
 # Eq.12 (Modelo Global)
-
 # Função para calcular p_km para cada subportadora e usuário
 def calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M):
     P_eq = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
@@ -831,9 +828,25 @@ def calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M):
 
 
 
+
+# Eq.15 (Modelo Global)
+# Função para calcular eta(X)
+def calcular_eta(X, W, P_c, rho, p_r, g_t, g_ru, L_k, I_ki, I_d, N_0, M):
+    numerator = 0
+    for k in range(M):
+        for m in range(M):
+            selected_g_ru = np.random.choice(g_ru)
+            numerator += W * np.log2(1 + (p_r[m] * g_t * selected_g_ru * L_k[k]) / (I_ki[k, m] + I_d[m] + N_0 * W)) * X[k, m]
+    denominator = P_c + (1 / rho) * np.sum(p_r)
+    eta = numerator / denominator
+    return eta
+
+
+
+
 # Eq.16 (Modelo Global)
-# Função para calcular I_km^i
-def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km):
+# Função para calcular I_ki
+def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km, M):
     I_ki = np.zeros((M, M))
     for k in range(M):
         for m in range(M):
@@ -841,6 +854,8 @@ def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km):
             interferencia = g_s * selected_g_ru* L_k[k] * np.sum(p_km[:, m] * (1 - x_km[:, m]))
             I_ki[k, m] = interferencia
     return I_ki
+
+
 
 
 
@@ -872,17 +887,6 @@ def otimizar_X(q_km, M):
 
 
 
-# Eq.15 (Modelo Global)
-# Função para calcular eta(X)
-def calcular_eta(X, W, P_c, rho, p, g_t, g_ru, L_k, I_ki, I_d, N_0):
-    selected_g_ru = np.random.choice(g_ru)
-    numerator = np.sum(W * np.log2(1 + p * g_t * selected_g_ru * L_k / (I_ki + I_d + N_0 * W)) * X)
-    denominator = P_c + (1 / rho) * np.sum(p)
-    eta = numerator / denominator
-    return eta
-
-
-
 
 # Função iterativa para otimização conjunta
 def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_k_ru, L_k, I_d, N_0, max_iter=10, tol=1e-3):
@@ -896,13 +900,13 @@ def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g
         p_km = calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M)
 
         # Calcular I_ki
-        I_ki = calcular_I_ki(g_s, g_k_ru, L_k, p_km, X)
+        I_ki = calcular_I_ki(g_s, g_k_ru, L_k, p_km, X, M)
 
         # Calcular q_km
         q_km = calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
 
         # Calcular eta(X)
-        eta = calcular_eta(X, W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
+        eta = calcular_eta(X, W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0, M)
         print(f'Iteration {iteration}: eta = {eta}')
 
         # Otimizar X
@@ -924,11 +928,15 @@ def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g
 X, p_km, I_ki, q_km = otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_s, g_ru, L_k, I_d, N_0)
 
 
-print("p_km:")
-print(p_km)
-print("I_ki:")
-print(I_ki)
-print("q_km:")
-print(q_km)
-print("X otimizado:")
-print(X)
+print(f"--Eq.12 Potência de transmissão (p_k_m): {p_km}")
+print(f"--Eq.16 Interferência entre feixes (I_k_i): {I_ki}")
+print(f"--Eq.17 Definição da matriz Q (q_k_m): {q_km}")
+print(f"--Eq.18 Matriz binária X otimizado (x*): {X}")
+
+
+
+
+####################################################################################
+
+# Equações para algoritmo 1
+
