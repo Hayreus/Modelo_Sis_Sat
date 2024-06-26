@@ -9,7 +9,7 @@ from munkres import Munkres, print_matrix
 # Parâmetros
 N = 1                   # Número de niveis de camada hexagonais
 n =  7                     # Número de celulas hexagonais
-num_usuario_por_celula = 2
+num_usuario_por_celula = 1
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
@@ -36,11 +36,11 @@ P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
 xi = 15 * math.pi / 180     # Angulo minimo de elevação dado em graus e convertido para radianos
+L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
 
 
 # Dados de teste
-L_b = 1                         # Perda de transmissão (ajuste conforme necessário)
-P_T = 10**(50/10)                   # Potência total de transmissão em W
+P_T = 10**(30/10)                   # Potência total de transmissão em W
 
 
 
@@ -1019,21 +1019,47 @@ print(f"--Eq.2 Interferência intrausuário (Gamma): {gamma_km}")
 
 
 
-# Eq.6 (Modelo Global)
-def calcular_Rk(W, gamma_km, X):
+##################################################################################
+##################################################################################
 
-    K, M = gamma_km.shape  # K é o número de usuários, M é o número de canais
-    R_k1 = np.zeros(K)  # Inicializar o vetor de taxa de soma alcançável com zeros
+
+
+
+K, M = gamma_km.shape
+# Eq.6 (Modelo Global)
+def calculate_sum_rate(W, gamma_km, X):
+    """
+    Calculate the sum rate R_k for each user k.
     
+    Parameters:
+    W (float): Channel bandwidth.
+    gamma_km (ndarray): SNR matrix of shape (K, M).
+    X (ndarray): Allocation matrix of shape (K, M).
+    
+    Returns:
+    ndarray: Array of sum rates R_k for each user k.
+    """
+    K, M = gamma_km.shape
+    R_k = np.zeros(K)
     for k in range(K):
         for m in range(M):
-            R_k1[k] += W * np.log2(1 + gamma_km[k, m]) * X[k, m]
+            if X[k, m] == 1:
+                R_k[k] += W * np.log2(1 + gamma_km[k, m])
+    return R_k
 
-    return R_k1
 
 
-R_k = calcular_Rk(W, gamma_km, X)
+
+
+
+# Eq.10 (Modelo Global)
+def efficiency(X, p_km, P_c, rho, W, gamma_km):
+    R_k = calculate_sum_rate(W, gamma_km, X)
+    total_rate = np.sum(R_k)
+    total_power = P_c + (1 / rho) * np.sum(p_km * X)
+    return total_rate / total_power
+
+R_k = calculate_sum_rate(W, gamma_km, X)
+eta = efficiency(X, p_km, P_c, rho, W, gamma_km)
 print(f"--Eq.2 Taxa de soma alcançável do utilizador (R_k): {R_k}")
-
-
-
+print(f"--Eq.10 Eficiência (η): {eta}")
