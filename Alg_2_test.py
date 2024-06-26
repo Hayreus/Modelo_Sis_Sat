@@ -9,14 +9,14 @@ from munkres import Munkres, print_matrix
 # Parâmetros
 N = 1                   # Número de niveis de camada hexagonais
 n =  7                     # Número de celulas hexagonais
-num_usuario_por_celula = 3
+num_usuario_por_celula = 2
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
 v = 7460                    # Velocidade orbital em m/s
 F_c = 20e9                    # Frequencia de centro em hz
 W = 28e6              # Largura de banda em MHz 28 (28e6 Hz)
-T_s = 1                     # Tempo de duração do símbolo em micro segundo
+T_s = 1e-6                     # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
 N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
@@ -289,7 +289,7 @@ print(f"Distâncias para cada ponto: {distancias} Km")
 
 
 
-# Equações para algoritmo 2 e 3
+# Equações para algoritmo 3
 
 #Eq.52 (Modelo Global)
 def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios):
@@ -299,9 +299,9 @@ def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios):
     L_k = np.zeros(K)
     
     for k in range(K):
-        g_k_m = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_k da lista
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_k da lista
         d_m = distancias[k] * 1000  # Converte a distância de km para m
-        d_k = P_T * (g_t * g_k_m * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
+        d_k = P_T * (g_t * selected_g_ru * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
         h_k = np.random.normal(0, 1) + 1j * np.random.normal(0, 1)  # Variável aleatória complexa
         L_k[k] = d_k * np.abs(h_k)**2
     
@@ -309,7 +309,7 @@ def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios):
 
 
 L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios)
-print(f"--Potência recebida a uma distância (em watts, W): {L_k}")
+print(f"--Eq.52 Atenuação do canal (L_k): {L_k}")
 
 
 
@@ -354,7 +354,7 @@ def calcular_phi_k(coordenadas_lat_long, lat_sat=0, lon_sat=0):
 
 
 phi_k_list = calcular_phi_k(coordenadas_lat_long)
-print(f"--phi_k para cada ponto: {phi_k_list} radianos")
+print(f"--Eq.5 phi_k para cada ponto: {phi_k_list} radianos")
 
 
 
@@ -372,7 +372,7 @@ def calcular_fk(v, F_c, c, phi_k_list, usuarios):
 
 # Calcular f_k
 f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
-print(f"--Eq. 5 Frequência desviada associada ao k-ésimo usuário: {f_k}")
+print(f"--Eq.5 Frequência desviada associada ao k-ésimo usuário: {f_k}")
 
 
 
@@ -806,7 +806,7 @@ p_0 = initialization()
 # Executando o algoritmo de Dinkelbach
 p_star, lambda_star = dinkelbach_algorithm(p_0)
 
-print(f"--Alg. 3 Potências ótimas dos feixes: {p_star}")
+print(f"--Alg. 3 Potências ótimas dos feixes (p*): {p_star}")
 print(f"--Alg. 3 Eficiência energética máxima alcançável no sistema: {lambda_star}")
 
 
@@ -939,4 +939,101 @@ print(f"--Eq.18 Matriz binária X otimizado (x*): {X}")
 ####################################################################################
 
 # Equações para algoritmo 1
+
+
+
+
+def sinc(x):
+    """Implementação da função sinc."""
+    return np.sinc(x / np.pi)  # A função np.sinc(x) é normalizada como sin(pi*x)/(pi*x)
+
+def calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s):
+   
+    K, M = p_km.shape  # K é o número de usuários, M é o número de potências de transmissão
+    I_d_km = np.zeros((K, M))  # Inicializar a matriz de interferência interusuário com zeros
+    
+    for k in range(K):
+        for m in range(M):
+            selected_g_ru = np.random.choice(g_ru)
+            sinc_term = sinc(f_k[k] * T_s)
+            I_d_km[k, m] = p_km[k, m] * g_t * selected_g_ru * L_k[k] * (1 - sinc_term**2)
+
+    return I_d_km
+
+
+
+I_d_km = calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s)
+print(f"--Eq-4 Interferência interusuário (I_d1): {I_d_km}")
+
+
+
+
+# Eq.3 (Modelo Global)
+def calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X):
+
+    K, M = p_km.shape  # K é o número de usuários, M é o número de potências de transmissão
+    I_i_km = np.zeros((K, M))  # Inicializar a matriz de interferência intrausuário com zeros
+    
+    for k in range(K):
+        for m in range(M):
+            interference_sum = 0
+            for k_prime in range(K):
+                selected_g_ru = np.random.choice(g_ru)
+                for m_prime in range(M):
+                    if k_prime != k or m_prime != m:
+                        interference_sum += p_km[k_prime, m_prime] * X[k_prime, m_prime]
+            I_i_km[k, m] = g_s * selected_g_ru * L_k[k] * interference_sum
+
+    return I_i_km
+
+
+I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
+print(f"--Eq-3 Interferência intrausuário (I_i): {I_i_km}")
+
+
+
+
+# Eq.2 (Modelo Global)
+def calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W):
+
+    # Certificar que as dimensões das entradas são compatíveis
+    K, M = p_km.shape  # K é o número de usuários, M é o número de potências de transmissão
+    
+    # Inicializar a matriz de SNR com zeros
+    gamma_km = np.zeros((K, M))
+    
+    # Calcular a SNR para cada par (k, m)
+    for k in range(K):
+        for m in range(M):
+            selected_g_ru = np.random.choice(g_ru)
+            numerator = p_km[k, m] * g_t * selected_g_ru * L_k[k]
+            denominator = I_i_km[k, m] + I_d_km[k, m] + N_0 * W
+            gamma_km[k, m] = numerator / denominator
+    
+    return gamma_km
+
+
+gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
+print(f"--Eq.2 Interferência intrausuário (Gamma): {gamma_km}")
+
+
+
+
+# Eq.6 (Modelo Global)
+def calcular_Rk(W, gamma_km, X):
+
+    K, M = gamma_km.shape  # K é o número de usuários, M é o número de canais
+    R_k1 = np.zeros(K)  # Inicializar o vetor de taxa de soma alcançável com zeros
+    
+    for k in range(K):
+        for m in range(M):
+            R_k1[k] += W * np.log2(1 + gamma_km[k, m]) * X[k, m]
+
+    return R_k1
+
+
+R_k = calcular_Rk(W, gamma_km, X)
+print(f"--Eq.2 Taxa de soma alcançável do utilizador (R_k): {R_k}")
+
+
 
