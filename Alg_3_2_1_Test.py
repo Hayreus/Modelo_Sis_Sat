@@ -33,7 +33,7 @@ g_ru = [10**(10/10),
         10**(15/10)]       # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 0.5 em dB
 g_b = 10**(5/10)                     # Ganho da estação de base em w
 P_f = 10**(10/10)                    # Potência máxima transmitida em w
-P_r = 10**(-111/10)         # Potência de interferência admissível em w
+P_r = np.full(M, 10**(-111/10))         # Potência de interferência admissível em w
 P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
 rho = 0.8                   # Eficiência do amplificador 
 R = 6371                    # Raio médio da Terra em Km
@@ -61,6 +61,8 @@ def calcular_psi(R, h, xi):
     
     psi = area / R
     return psi
+
+
 psi = calcular_psi(R, h, xi)
 print (f"--Ângulo de cobertura em radianos: {psi:.4f}")
 
@@ -72,6 +74,8 @@ def calcular_beta(psi, n):
     beta = (2 * psi) / (2 * n + 1)
     
     return beta
+
+
 beta = calcular_beta(psi, n)
 print(f"--Angulo de cobertura de cada célula: {beta:.4f}")
 
@@ -83,6 +87,8 @@ def calcular_Nc(N):
     Nc = 1 + (6 * N * (N + 1)) / 2
     
     return Nc
+
+
 Nc = calcular_Nc(N)
 print(f"--Número de feixes pontuais: {Nc}")
 
@@ -96,6 +102,8 @@ def calcular_theta_0(R, h, beta):
     theta_0 = (math.atan2(numerador, denominador))
     
     return theta_0
+
+
 theta_0 = calcular_theta_0(R, h, beta)
 print(f"--largura do feixe da célula central: {theta_0:.4f}")
 
@@ -123,6 +131,7 @@ def calcular_theta_n(R, h, beta, theta_0, N):
             
     
     return thetas
+
 
 theta_n1 = calcular_theta_n(R, h, beta, theta_0, N)
 theta_n = [theta_n1[0]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2, theta_n1[1]/2]
@@ -279,9 +288,6 @@ def calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R):
     return distancias
 
 
-# Calcular distâncias
-distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)
-print(f"Distâncias para cada ponto (Km):\n{distancias}")
 
 
 
@@ -307,6 +313,8 @@ def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M):
         L_k[k] = d_k * np.abs(h_k)**2
     
     return L_k
+
+
 
 
 #Eq. 5 (Modelo Global)
@@ -363,6 +371,8 @@ def calcular_fk(v, F_c, c, phi_k_list, M):
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
 
+#f_k = calcular_fk(v, F_c, c, phi_k_list, M)
+
 
 #Eq.34 (Modelo Global)
 def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
@@ -372,9 +382,11 @@ def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
     pe3 = P_r / (g_s * g_b * L_b * M)
     
     # Calcula o valor mínimo entre os três candidatos
-    pe0 = min(pe1, pe2, pe3)
+    pe0 = np.minimum(pe1, np.minimum(pe2, pe3.min()))
     
     return pe0
+
+#p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
 
 
 def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
@@ -436,26 +448,33 @@ def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
         }
 
 
-
 #####Eq.21 (Modelo Global)
-def calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, M):
-    
+def calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M):
+
+    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+    p_e = np.full(M, p_e)
+
     I_d = np.zeros(M)
 
     for k in range(M):
         selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-        I_d[k] = p_e * g_t * selected_g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
+        I_d[k] = p_e[k] * g_t * selected_g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
     return I_d
 
 
-#####Eq.20 (Modelo Global)
-def calcular_I_i(p_e, g_s, g_ru, L_k, M):
+#I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, M)
+#print(f"I_d:\n{I_d}")
 
+
+#####Eq.20 (Modelo Global)
+def calcular_I_i(g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M):
+    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+    p_e = np.full(M, p_e)
     I_i = np.zeros(M)
     
     for k in range(M):
         selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-        sum_p_k_prime = p_e * np.sum([1 if k_prime != k else 0 for k_prime in range(M)])
+        sum_p_k_prime = p_e[k] * np.sum([1 if k_prime != k else 0 for k_prime in range(M)])
         I_i[k] = g_s * selected_g_ru * L_k[k] * sum_p_k_prime
         
     return I_i
@@ -523,15 +542,19 @@ bounds = [(0, P_f) for _ in range(M)]
                     method='SLSQP', bounds=bounds, constraints=cons) """
 
 
-######Eq.27 (Modelo Global)
-def f1(p_e, g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, M):
 
-    I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, M)
+
+######Eq.27 (Modelo Global)
+def f1(g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b, M):
+
+    I_d = calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
     f1_values = np.zeros(M)
-    
+    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+    p_e = np.full(M, p_e)
+
     for k in range(M):
         selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-        numerator = p_e * g_t * selected_g_ru * L_k[k]
+        numerator = p_e[k] * g_t * selected_g_ru * L_k[k]
         denominator = I_i[k] + I_d[k] + N_0 * W
         f1_values[k] = np.log2(1 + numerator / denominator)
     
@@ -571,7 +594,7 @@ def calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M):
     tilde_R = np.zeros(M)
     
     for k in range(M):
-        gradient_term = gra_f2[k] * (p_e - p_0[k])
+        gradient_term = gra_f2[k] * (p_e[k] - p_0[k])
         tilde_R[k] = f_1[k] - (f_2[k] - gradient_term)
     
     return tilde_R
@@ -586,8 +609,8 @@ def tilde_C(tilde_R, W):
 
 
 #Eq.23 (Modelo Global)
-def calcular_D(p_star, P_c, rho):
-    D_p_star = P_c + (1 / rho) * sum(p_star)
+def calcular_D(p_0, P_c, rho):
+    D_p_star = P_c + (1 / rho) * sum(p_0)
     return D_p_star
 
 
@@ -633,12 +656,8 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T
 
 
 
-#######################################################################################################################################
-
-
-
-
-#Algoritmo 3
+########################################################################################################################################
+# Algoritmo 3
 # Inicialização
 def initialization():
     #Inicializa o vetor de potências com valores aleatórios distribuídos entre os feixes ativos.
@@ -650,20 +669,21 @@ def objetivo_dinkelbach(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_
 
     #Calcula a função objetivo do algoritmo de Dinkelbach.
     f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
-    f_1 = f1(p_e, g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, M)
+    f_1 = f1(g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b, M)
     f_2 = f2(I_i, I_d, N_0, W, M)
     gra_f2 = grad_f2(I_i, I_d, N_0, W, M)
     tilde_R = calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M)
     tilde_C_p = tilde_C(tilde_R, W)
-    D_p = calcular_D(p_star, P_c, rho)
+    D_p = calcular_D(p_0, P_c, rho)
     return -(tilde_C_p - lambda_n * D_p)
 
 # Otimização usando minimize
-def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
-    
+def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios):
+    f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
     L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
     p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
-    I_i = calcular_I_i(p_e, g_s, g_ru, L_k, M)
+    I_i = calcular_I_i(g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M)
+    I_d = calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
 
     #Resolve o problema de otimização usando a função objetivo de Dinkelbach e as restrições definidas.
     constraints = [
@@ -675,7 +695,7 @@ def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
     result = minimize(
         objetivo_dinkelbach, 
         p_0, 
-        args=(W, g_t, g_ru, L_k, I_i, calculate_I_d, N_0, P_c, rho, lambda_n), 
+        args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n), 
         constraints=constraints,
         method='SLSQP'  # Usando um método específico de otimização
     )
@@ -683,20 +703,29 @@ def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0):
 
 
 # Algoritmo de Dinkelbach
-def dinkelbach_algorithm(p_0, epsilon=1e-5):
+def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-5):
 
-    #Executa o algoritmo de Dinkelbach para encontrar a solução ótima.
-    lambda_n = 0  # Inicializa o parâmetro lambda
+    # Inicializa o parâmetro lambda
+    lambda_n = 0  
     n = 0  # Contador de iterações
 
     while True:
         # Resolve o problema de otimização com o valor atual de lambda_n
-        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0)
+        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios)
         p_star = result.x  # Potências ótimas encontradas
 
-        # Calcula tilde_C e D para as potências ótimas
-        tilde_C_p_star = tilde_C(calculate_tilde_R, W)
-        D_p_star = calcular_D(p_star, P_c, rho)
+        f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
+        L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
+        I_i = calcular_I_i(g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M)
+        I_d = calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
+        p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+        p_e = np.full(M, p_e)
+        f_1 = f1(g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b, M)
+        f_2 = f2(I_i, I_d, N_0, W, M)
+        gra_f2 = grad_f2(I_i, I_d, N_0, W, M)
+        tilde_R = calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M)
+        tilde_C_p_star = tilde_C(tilde_R, W)
+        D_p_star = calcular_D(p_0, P_c, rho)
 
         # Calcula F(lambda_n)
         F_lambda_n = tilde_C_p_star - lambda_n * D_p_star
@@ -715,34 +744,39 @@ def dinkelbach_algorithm(p_0, epsilon=1e-5):
 
 
 
-
-
 # Equações para algoritmo 2
-
-p_r = np.full(M, 10**(-111/10))  # Criando vetor de potencias.
 
 # Eq.12 (Modelo Global)
 # Função para calcular p_km para cada subportadora e usuário
 def calcular_p_km(P_T, P_f, P_r, g_s, g_b, L_b, M):
-    P_eq = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
+    # Calcular os três valores possíveis para P_eq
+    P_eq_1 = P_f
+    P_eq_2 = P_T / M
+    P_eq_3 = P_r / (g_s * g_b * L_b * M)
+
+    # Encontrar o valor mínimo entre os três valores possíveis
+    P_eq = np.minimum(P_eq_1, np.minimum(P_eq_2, P_eq_3.min()))
+    
+    # Criar a matriz p_km com o valor P_eq
     p_km = np.full((M, M), P_eq)
     return p_km
 
 
+
 # Eq.15 (Modelo Global) Algoritmo 2
 # Função para calcular eta(X)
-def calcular_eta(M, p_km, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X):
+def calcular_eta(M, p_km, P_c, P_r, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X):
     numerator = 0
     for k in range(M):
         for m in range(M):
             selected_g_ru = np.random.choice(g_ru)
-            numerator += W * np.log2(1 + (p_r[m] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[m] + N_0 * W)) * X[k, m]
-    denominator = P_c + (1 / rho) * np.sum(p_r)
+            numerator += W * np.log2(1 + (P_r[m] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[m] + N_0 * W)) * X[k, m]
+    denominator = P_c + (1 / rho) * np.sum(P_r)
     eta = numerator / denominator
     return eta
 
 
-# Eq.16 (Modelo Global)
+# Eq.16 (Modelo Global), interferência entre feixes
 def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km, M):
     I_ki = np.zeros((M, M))
     for k in range(M):
@@ -780,7 +814,8 @@ def otimizar_X(q_km, M):
 def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, L_k, I_d, N_0, max_iter=10, tol=1e-3):
     # Inicializar X com uma alocação inicial
     p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
-    I_i = calcular_I_i(p_e, g_s, g_ru, L_k, M)
+    I_i = calcular_I_i(g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M)
+
     X = np.zeros((M, M))
     for k in range(M):
         X[k, k % M] = 1
@@ -796,8 +831,8 @@ def otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g
         q_km = calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
 
         # Calcular eta(X)
-        eta = calcular_eta(M, p_km, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X)
-        print(f'Iteration {iteration}: eta = {eta}')
+        eta = calcular_eta(M, p_km, P_c, P_r, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X)
+        print(f'Iteração {iteration}: eta = {eta}')
 
         # Otimizar X
         X_new = otimizar_X(q_km, M)
@@ -896,79 +931,48 @@ def eta_ef(X, p_km, P_c, rho, W, gamma_km):
     return total_rate / total_power
 
 
-L = {
-    'usuarios': num_usuario_por_celula * n,
-    'c': 1.0,
-    'P_T': 10**(20/10),
-    'g_t': 10**(52.1/10),
-    'g_ru': [10**(10/10), 10**(11/10), 10**(12/10), 10**(13/10), 10**(14/10), 10**(15/10)],
-    'F_c': 3e9,
-    'g_s': 10**(5/10),
-    'T_s': 290,
-    'M': usuarios,
-    'P_c': 10**(10/10),
-    'rho': 0.8,
-    'W': 28e6,
-    'N_0': 10**(-172/10),
-    'L_b': 1,
-    'p_0': initialization(),
-    'L_k': calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, usuarios)
-}
 
 
-def algoritmo_1 (L, epsilon=1e-3):
+def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-3):
+
     # Inicializações
-    usuarios = L['usuarios']
-    c = L['c']
-    P_T = L['P_T']
-    g_t = L['g_t']
-    g_ru = L['g_ru']
-    F_c = L['F_c']
-    g_s = L['g_s']
-    T_s = L['T_s']
-    M = L['M']
-    P_c = L['P_c']
-    rho = L['rho']
-    W = L['W']
-    N_0 = L['N_0']
-    L_b = L['L_b']
-    p_0 = L['p_0']
-    L_k = L['L_k']
-
-    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
-    p_km = min(P_f, P_T / M, P_r / (g_s * g_b * L_b * M))
-    I_i = calcular_I_i(p_e, g_s, g_ru, L_k, M)
-
-    f_k = calcular_fk(v, F_c, c, phi_k_list, M)
-    L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
-    I_d = np.zeros(M)
-    
-
+    p_eq = np.min([P_f, P_T / M, np.min(P_r / (g_s * g_b * L_b * M))])
+    p_0 = np.full(M, p_eq)
     i = 0
 
-    while True:
-        # Algoritmo 2
-        X, p_km, I_ki, q_km = otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, L_k, I_d, N_0, max_iter=10, tol=1e-3)
-        q_km = calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0)
-        I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
-        I_d_km = calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s)
-        gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
+    distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)
+    L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
+    f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
+    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+    p_e = np.full(M, p_e)
+    I_d = calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M) #Interferência Doppler
 
-        # Algoritmo 3
-        p_km, lambda_n = dinkelbach_algorithm(p_0, epsilon=1e-5)
-        D_p_star = calcular_D(p_km, P_c, rho)
+    X_prev, p_prev = None, None
+
+    while True:
+        # Algoritmo 2: Beam assignment
+        X, p_km, I_ki, q_km = otimizar_iterativamente(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, L_k, I_d, N_0, max_iter=10, tol=1e-3)
+
+        # Algoritmo 3: Alocação de potência
+        p_star, lambda_n = dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-5)
 
         # Critério de parada
-        if i > 0 and abs(eta_ef(X, p_km, P_c, rho, W, gamma_km) - eta_ef(X_prev, p_km_prev, P_c, rho, W, gamma_km)) < epsilon:
+        I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
+        I_d_km = calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s)
+
+        gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
+        if i > 0 and abs(eta_ef(X, p_star, P_c, rho, W, gamma_km) - eta_ef(X_prev, p_prev, P_c, rho, W, gamma_km)) < epsilon:
             break
 
-        # Atualização
-        X_prev, p_km_prev  = X, p_km
+        # Atualização para a próxima iteração
+        p_0 = p_star
+        X_prev, p_prev = X, p_star
         i += 1
 
-    return X, p_km
+    return p_star, X
 
+# Executando o algoritmo 1 com os valores definidos
+p_star, X_star = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-3)
 
-X, p_km = algoritmo_1 (L, epsilon=1e-3)
-print(f"--Algoritmo 1 (p_km):\n{p_km}")
-print(f"--Algoritmo 1 (X):\n{X}")
+print(f"Potências ótimas p*:\n{p_star}")
+print(f"Matriz de alocação ótima X*:\n{X_star}")
