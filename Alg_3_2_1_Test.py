@@ -357,7 +357,7 @@ def calcular_phi_k(coordenadas_lat_long, lat_sat=0, lon_sat=0):
 
 
 phi_k_list = calcular_phi_k(coordenadas_lat_long)
-print(f"--Eq.5 phi_k para cada pontoem radianos:\n{phi_k_list}")
+print(f"--Eq.5 phi_k para cada ponto em radianos:\n{phi_k_list}")
 
 
 
@@ -370,8 +370,6 @@ def calcular_fk(v, F_c, c, phi_k_list, M):
         angle = phi_k_list[k]
         f_k.append((v * F_c / c) * np.cos(angle))
     return f_k
-
-#f_k = calcular_fk(v, F_c, c, phi_k_list, M)
 
 
 #Eq.34 (Modelo Global)
@@ -386,7 +384,6 @@ def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
     
     return pe0
 
-#p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
 
 
 def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
@@ -460,10 +457,6 @@ def calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M):
         selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
         I_d[k] = p_e[k] * g_t * selected_g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
     return I_d
-
-
-#I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, M)
-#print(f"I_d:\n{I_d}")
 
 
 #####Eq.20 (Modelo Global)
