@@ -496,43 +496,41 @@ def calcular_eta(M, p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0):
 #Eq. 22 (Modelo Global)
 
 # Definição da função objetivo (Eq. 22 - Modelo Global)
-def objective(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M):
-    p_e = np.full(M, p_e)
-    selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-    num = np.sum([W * np.log2(1 + (p_e[k] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(M)])
-    denom = P_c + (1 / rho) * np.sum(p_e)
-    return -num / denom  # Negativo porque estamos maximizando
+def optimize_power_allocation(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M, P_T, P_f, P_r, g_s, g_b, L_b):
+    def objective(p_e):
+        p_e = np.full(M, p_e)
+        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
+        num = np.sum([W * np.log2(1 + (p_e[k] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[k] + N_0 * W)) for k in range(M)])
+        denom = P_c + (1 / rho) * np.sum(p_e)
+        return -num / denom  # Negativo porque estamos maximizando
 
-# Restrições
-def constraint1(p_e, P_T):
-    return P_T - np.sum(p_e)
+    # Restrições
+    def constraint1(p_e):
+        return P_T - np.sum(p_e)
 
-def constraint2(p_e, P_f):
-    return P_f - np.max(p_e)
+    def constraint2(p_e):
+        return P_f - np.max(p_e)
 
-def constraint3(p_e, P_r, g_s, g_b, L_b):
-    return P_r - np.sum(p_e) * g_s * g_b * L_b
+    def constraint3(p_e):
+        return P_r - np.sum(p_e) * g_s * g_b * L_b
 
-# Inicialização das potências (valores iniciais)
-p_0 = np.ones(M) * (P_T / M)
+    # Inicialização das potências (valores iniciais)
+    p_0 = np.ones(M) * (P_T / M)
 
-# Definição dos argumentos das restrições
-args_con1 = (P_T,)
-args_con2 = (P_f,)
-args_con3 = (P_r, g_s, g_b, L_b)
+    # Definição das restrições
+    cons = [
+        {'type': 'ineq', 'fun': constraint1},
+        {'type': 'ineq', 'fun': constraint2},
+        {'type': 'ineq', 'fun': constraint3}
+    ]
 
-# Definição das restrições
-con1 = {'type': 'ineq', 'fun': constraint1, 'args': args_con1}
-con2 = {'type': 'ineq', 'fun': constraint2, 'args': args_con2}
-con3 = {'type': 'ineq', 'fun': constraint3, 'args': args_con3}
-cons = [con1, con2, con3]
+    # Limites para as potências
+    bounds = [(0, P_f) for _ in range(M)]
 
-# Limites para as potências
-bounds = [(0, P_f) for _ in range(M)]
+    # Resolução do problema de otimização
+    solution = minimize(objective, p_0, method='SLSQP', bounds=bounds, constraints=cons)
 
-# Resolução do problema de otimização
-""" solution = minimize(objective, p_0, args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, M),
-                    method='SLSQP', bounds=bounds, constraints=cons) """
+    return solution
 
 
 
@@ -584,6 +582,7 @@ def grad_f2(I_i, I_d, N_0, W, M):
 
 def calculate_tilde_R(f_1, f_2, gra_f2, p_e, p_0, M):
    
+    p_e = np.full(M, p_e)
     tilde_R = np.zeros(M)
     
     for k in range(M):
@@ -657,10 +656,10 @@ def initialization():
     p_0 = np.random.uniform(0, P_T / M, M)
     return p_0
 
-# Função objetivo para Dinkelbach
-def objetivo_dinkelbach(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n):
 
-    #Calcula a função objetivo do algoritmo de Dinkelbach.
+# Função objetivo para Dinkelbach
+def objetivo_dinkelbach(p_0, p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, M):
+    # Calcula a função objetivo do algoritmo de Dinkelbach.
     f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
     f_1 = f1(g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b, M)
     f_2 = f2(I_i, I_d, N_0, W, M)
@@ -671,40 +670,39 @@ def objetivo_dinkelbach(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_
     return -(tilde_C_p - lambda_n * D_p)
 
 # Otimização usando minimize
-def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios):
+def resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, W, N_0, P_c, rho):
     f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
     L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
     p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
     I_i = calcular_I_i(g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M)
     I_d = calculate_I_d(g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
-
-    #Resolve o problema de otimização usando a função objetivo de Dinkelbach e as restrições definidas.
+    
+    # Define as restrições
     constraints = [
-        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p_e)},  # Soma das potências dos feixes ativos <= potência total disponível
-        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p_e)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
-        {'type': 'ineq', 'fun': lambda p: P_r - np.sum(p_e) * g_s * g_b * L_b}  # Soma das potências dos feixes ativos >= potência recebida mínima
+        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p)},  # Soma das potências dos feixes ativos <= potência total disponível
+        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
+        {'type': 'ineq', 'fun': lambda p: np.sum(p) * g_s * g_b * L_b - P_r}  # Soma das potências dos feixes ativos >= potência recebida mínima
     ]
 
+    # Resolve o problema de otimização usando a função objetivo de Dinkelbach
     result = minimize(
-        objetivo_dinkelbach, 
-        p_0, 
-        args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n), 
+        objetivo_dinkelbach,
+        p_0,
+        args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, M),
         constraints=constraints,
-        method='SLSQP'  # Usando um método específico de otimização
+        method='SLSQP'
     )
     return result
 
-
 # Algoritmo de Dinkelbach
 def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-5):
-
     # Inicializa o parâmetro lambda
-    lambda_n = 0  
+    lambda_n = 0
     n = 0  # Contador de iterações
 
     while True:
         # Resolve o problema de otimização com o valor atual de lambda_n
-        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios)
+        result = resolver_problema_otimizacao_dinkelbach(lambda_n, p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, W, N_0, P_c, rho)
         p_star = result.x  # Potências ótimas encontradas
 
         f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
