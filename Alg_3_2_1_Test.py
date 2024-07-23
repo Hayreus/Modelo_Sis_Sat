@@ -366,10 +366,9 @@ def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
 
 p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
 
-def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
 
-    # Calcula p_e0
-    p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+
+def optimize_energy_efficiency(p_e, K, M, P_T, P_f, P_r, g_s, g_b, L_b):
     
     # Definindo a função objetivo (a ser maximizada, mas linprog minimiza, então invertemos o sinal)
     c = -np.ones(K * M)  # Maximizar η(X, p_e) onde η é proporcional ao número de alocações
@@ -403,7 +402,7 @@ def optimize_energy_efficiency(K, M, P_T, P_f, P_r, g_s, g_b, L_b):
     # Restrição 32a: Potência total alocada deve ser menor ou igual a P_T
     for k in range(K):
         for m in range(M):
-            A_ub[0, k * M + m] = p_e0
+            A_ub[0, k * M + m] = p_e
     b_ub[0] = P_T
     
     # Resolvendo o problema de otimização
@@ -585,7 +584,7 @@ def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
 
 
 #Eq.29 (Modelo Global)
-def objetivo(p_e_1, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
+def objetivo(p_0, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
     return -(tilde_C_p_star - lambda_estrela * D_p_star)
 
 def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
@@ -593,17 +592,17 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T
     # Chute inicial: igualmente distribuído entre os feixes ativos
     initial_guess = [P_T / len(g_ru)] * len(g_ru)
     
-    def constraint_total_power(p_e_1):
+    def constraint_total_power(p_0):
         # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
-        return sum(p_e_1) - P_T
+        return sum(p_0) - P_T
     
-    def constraint_individual_power(p_e_1):
+    def constraint_individual_power(p_0):
         # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
-        return p_e_1 - P_f
+        return p_0 - P_f
 
-    def constraint_received_power(p_e_1):
+    def constraint_received_power(p_0):
         # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
-        return sum(p_e_1) - P_r / (g_s * g_b * L_b)
+        return sum(p_0) - P_r / (g_s * g_b * L_b)
 
     # Definindo as restrições do problema de otimização
     constraints = [{'type': 'ineq', 'fun': constraint_total_power},
@@ -611,8 +610,12 @@ def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T
                    {'type': 'ineq', 'fun': constraint_received_power}]
     
     # Chamada para o otimizador
-    result = minimize(objetivo, initial_guess, args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela, tilde_C_p_star, D_p_star),
-                      constraints=constraints)
+    result = minimize(objetivo,
+                initial_guess,
+                args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela,
+                tilde_C_p_star,
+                D_p_star),
+                constraints=constraints)
     
     return result
 
@@ -695,7 +698,7 @@ def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r,
         p_0 = p_star
         n += 1
 
-    return p_star, lambda_n
+    return p_0, lambda_n
 
 
 
