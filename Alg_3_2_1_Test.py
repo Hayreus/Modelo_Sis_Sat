@@ -11,7 +11,7 @@ np.set_printoptions(threshold=np.inf)
 # Parâmetros
 N = 1                       # Número de niveis de camada hexagonais
 n =  7                      # Número de celulas hexagonais
-num_usuario_por_celula = 2
+num_usuario_por_celula = 15
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
@@ -21,7 +21,7 @@ W = 28e6                    # Largura de banda em MHz 28 (28e6 Hz)
 T_s = 1e-6                  # Tempo de duração do símbolo em micro segundo
 micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
-N_0 = 10**(-172/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
+N_0 = 10**(-174/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = usuarios                # Número de feixes
 g_t = 10**(52.1/10)         # Ganho da antena do satélite em W
 g_s = 10**(5/10)            # Lóbulo lateral da antena de satélite em dB
@@ -43,7 +43,7 @@ L_b = 1                     # Perda de transmissão
 
 # Dados de teste
 
-P_T = 10**(30/10)                   # Potência total de transmissão em W
+P_T = 10**(20/10)           # Potência total de transmissão em W
 
 
 #Eq. 1 (Posição Global)
@@ -268,8 +268,8 @@ def calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R):
     
     return distancias
 
-
-print(f"Distâncias: {calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)}")
+distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)
+print(f"Distâncias: {distancias}")
 
 ############################################################################################
 
@@ -293,7 +293,8 @@ def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M):
     
     return L_k
 
-
+L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
+print(f"L_k: {L_k}")
 
 
 #Eq. 5 (Modelo Global)
@@ -365,6 +366,7 @@ def calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M):
     return p_e
 
 p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
+print(f"p_e: {p_e}")
 
 
 
@@ -583,43 +585,6 @@ def calcular_lambda_estrela(tilde_C_p_star, D_p_star):
     return lambda_estrela
 
 
-#Eq.29 (Modelo Global)
-def objetivo(p_0, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, tilde_C_p_star, D_p_star, lambda_estrela):
-    return -(tilde_C_p_star - lambda_estrela * D_p_star)
-
-def resolver_problema_otimizacao(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela):
-    
-    # Chute inicial: igualmente distribuído entre os feixes ativos
-    initial_guess = [P_T / len(g_ru)] * len(g_ru)
-    
-    def constraint_total_power(p_0):
-        # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
-        return sum(p_0) - P_T
-    
-    def constraint_individual_power(p_0):
-        # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
-        return p_0 - P_f
-
-    def constraint_received_power(p_0):
-        # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
-        return sum(p_0) - P_r / (g_s * g_b * L_b)
-
-    # Definindo as restrições do problema de otimização
-    constraints = [{'type': 'ineq', 'fun': constraint_total_power},
-                   {'type': 'ineq', 'fun': constraint_individual_power},
-                   {'type': 'ineq', 'fun': constraint_received_power}]
-    
-    # Chamada para o otimizador
-    result = minimize(objetivo,
-                initial_guess,
-                args=(W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, P_T, P_f, P_r, g_s, g_b, L_b, lambda_estrela,
-                tilde_C_p_star,
-                D_p_star),
-                constraints=constraints)
-    
-    return result
-
-
 
 
 
@@ -646,11 +611,28 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
     I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
     
     # Define as restrições
-    constraints = [
-        {'type': 'ineq', 'fun': lambda p: P_T - np.sum(p)},  # Soma das potências dos feixes ativos <= potência total disponível
-        {'type': 'ineq', 'fun': lambda p: P_f - np.max(p)},  # Potência individual de cada feixe ativo <= potência individual máxima permitida
-        {'type': 'ineq', 'fun': lambda p: np.sum(p) * g_s * g_b * L_b - P_r}  # Soma das potências dos feixes ativos >= potência recebida mínima
-    ]
+    def constraint_total_power(p_0):
+        # Restrição: a soma das potências dos feixes ativos deve ser menor ou igual à potência total disponível
+        return sum(p_0) - P_T
+    
+    def constraint_individual_power(p_0):
+        # Restrição: a potência individual de cada feixe ativo deve ser menor ou igual à potência individual máxima permitida
+        return p_0 - P_f
+
+    def constraint_received_power(p_0):
+        # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
+        return sum(p_0) - P_r / (g_s * g_b * L_b)
+    
+    def constraint_positive_power(p_0):
+        # Restrição: todas as potências devem ser maiores que zero
+        return p_0
+
+    # Definindo as restrições do problema de otimização
+    constraints = [{'type': 'ineq', 'fun': constraint_total_power},
+                   {'type': 'ineq', 'fun': constraint_individual_power},
+                   {'type': 'ineq', 'fun': constraint_received_power},
+                   #{'type': 'ineq', 'fun': constraint_positive_power}
+                   ]
 
     # Resolve o problema de otimização usando a função objetivo de Dinkelbach
     result = minimize(
@@ -658,7 +640,9 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         p_0,
         args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, M),
         constraints=constraints,
-        method='SLSQP'
+        method='SLSQP',
+        #method='L-BFGS-B',
+        bounds=[(0, None) for _ in p_0]  # Define limites inferiores positivos
     )
     return result
 
@@ -677,7 +661,6 @@ def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r,
         L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
         I_i = calcular_I_i(p_e, g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M)
         I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
-
 
         f_1 = f1(p_e, g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b, M)
         f_2 = f2(I_i, I_d, N_0, W, M)
@@ -809,7 +792,6 @@ def otimizar_iterativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g
 
 
 ####################################################################################
-
 # Equações para algoritmo 1
 
 
