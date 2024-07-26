@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from scipy.optimize import linprog
 from scipy.optimize import linear_sum_assignment
-from munkres import Munkres, print_matrix
 
 np.set_printoptions(threshold=np.inf)
 
