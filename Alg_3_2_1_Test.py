@@ -11,7 +11,7 @@ np.set_printoptions(threshold=np.inf)
 # Parâmetros
 N = 1                       # Número de niveis de camada hexagonais
 n =  7                      # Número de celulas hexagonais
-num_usuario_por_celula = 15
+num_usuario_por_celula = 3
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
