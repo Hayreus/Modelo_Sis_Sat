@@ -1,16 +1,17 @@
 import math
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from scipy.optimize import minimize
 from scipy.optimize import linprog
 from scipy.optimize import linear_sum_assignment
 
-np.set_printoptions(threshold=np.inf)
 
 # Parâmetros
 N = 1                       # Número de niveis de camada hexagonais
 n =  7                      # Número de celulas hexagonais
-num_usuario_por_celula = 3
+num_usuario_por_celula = 1
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
@@ -47,7 +48,6 @@ P_T = 10**(20/10)           # Potência total de transmissão em W
 
 #Eq. 1 (Posição Global)
 def calcular_psi(R, h, xi):
-
     # Cálculo do termo dentro do arco seno
     termo_arco_seno = R / (R + h) * math.cos(xi)
     
@@ -102,7 +102,6 @@ print(f"--largura do feixe da célula central: {theta_0:.4f}")
 
 #Eq. 5 (Posição Global)
 def calcular_theta_n(R, h, beta, theta_0, N):
-
     thetas = np.zeros(N + 1)
     for n in range(N + 1):
         if n == 0:
@@ -130,7 +129,6 @@ print(f"--Abertura θ das células em radianos:\n{theta_n}")
 
 
 def calcular_area_calota_esferica(R, psi):
-
     area_calota_esferica = 2 * math.pi * R ** 2 * (1 - math.cos(psi))
     return area_calota_esferica
 
@@ -141,7 +139,6 @@ print(f"--Área da calota esférica: {area_calota_esferica:.4f} km²")
 
 
 def calcular_comprimento_arco(R, psi):
-
     L = R * psi
     return L
 
@@ -177,7 +174,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     todas_coordenadas = []
     
     # Adiciona o círculo central e seus pontos
-    circulo_central = plt.Circle((0, 0), raio * 1.15, edgecolor='r', facecolor='none', linestyle='--', label='Cobertura dos Feixes')
+    circulo_central = patches.Circle((0, 0), raio * 1.15, edgecolor='r', facecolor='none', linestyle='--', label='Cobertura dos Feixes')
     ax.add_artist(circulo_central)
     
     pontos_central = gerar_pontos_no_circulo((0, 0), raio, num_pontos_por_circulo)
@@ -188,7 +185,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     # Adiciona os círculos ao redor e seus pontos
     pontos_hexagonais = calcular_pontos_hexagonais(raio)
     for centro in pontos_hexagonais:
-        circulo = plt.Circle(centro, raio * 1.15, edgecolor='r', facecolor='none', linestyle='--')
+        circulo = patches.Circle(centro, raio * 1.15, edgecolor='r', facecolor='none', linestyle='--')
         ax.add_artist(circulo)
         
         pontos = gerar_pontos_no_circulo(centro, raio, num_pontos_por_circulo)
@@ -198,7 +195,7 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
     
     # Adiciona o círculo externo
     Raio_Total = 2 * raio + raio
-    circulo_externo = plt.Circle((0, 0), Raio_Total, edgecolor='g', facecolor='none', linestyle='-', label='Cobertura do Satélite')
+    circulo_externo = patches.Circle((0, 0), Raio_Total, edgecolor='g', facecolor='none', linestyle='-', label='Cobertura do Satélite')
     ax.add_artist(circulo_externo)
     
     # Configurações do gráfico
@@ -223,11 +220,10 @@ def plotar_circulos_e_pontos(raio, num_pontos_por_circulo):
 # Gerar e plotar as coordenadas dos usuários
 coordenadas_todos_usuarios = plotar_circulos_e_pontos(raio, num_usuario_por_celula)
 print(f"--Coordenada de Usuários:\n{coordenadas_todos_usuarios}")
-print(f"--Número Total de Usuários:\n{len(coordenadas_todos_usuarios)}")
+print(f"--Número Total de Usuários: {len(coordenadas_todos_usuarios)}")
 
 
 def converter_xy_para_lat_long(coordenadas_todos_usuarios, R):
-    
     # Lista para armazenar as latitudes e longitudes calculadas
     coordenadas_lat_long = []
     
@@ -450,7 +446,7 @@ def calcular_I_i(p_e, g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M):
 
 
 #Eq.19 (Modelo Global)
-def calcular_eta(M, p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0):
+def calcular_eta_1(M, p_e, P_c, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0):
     
     # Calcula o numerador da eficiência energética
     C_p = 0
@@ -620,11 +616,11 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
 
     def constraint_received_power(p_0):
         # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
-        return sum(p_0) - P_r / (g_s * g_b * L_b)
+        return P_r / (g_s * g_b * L_b) - sum(p_0)
     
     def constraint_positive_power(p_0):
         # Restrição: todas as potências devem ser maiores que zero
-        return p_0
+        return - p_0
 
     # Definindo as restrições do problema de otimização
     constraints = [{'type': 'ineq', 'fun': constraint_total_power},
