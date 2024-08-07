@@ -637,7 +637,7 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         constraints=constraints,
         method='SLSQP',
         #method='L-BFGS-B',
-        bounds=[(0, None) for _ in p_0]  # Define limites inferiores positivos
+        bounds=[(0, P_T) for _ in p_0]  # Define limites inferiores positivos
     )
     return result
 
