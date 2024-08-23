@@ -870,7 +870,7 @@ def eta_ef(X, p_km, P_c, rho, W, gamma_km):
 
 
 
-def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-1):
+""" def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-1):
 
     # Inicializações
     p_eq = np.min([P_f, P_T / M, np.min(P_r / (g_s * g_b * L_b * M))])
@@ -912,4 +912,76 @@ print(f"--Potência total disponível: {P_T}")
 print(f"--Número Total de Usuários: {len(coordenadas_todos_usuarios)}")
 print(f"--Soma das potências ótimas: {sum(p_star)}")
 print(f"--Potências otimizadas:\n{p_star}")
-print(f"--Matriz de alocação Feixes/Usuários:\n{X_star}")
+print(f"--Matriz de alocação Feixes/Usuários:\n{X_star}") """
+
+
+
+
+def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-1):
+
+    # Inicializações
+    p_eq = np.min([P_f, P_T / M, np.min(P_r / (g_s * g_b * L_b * M))])
+    p_0 = np.full(M, p_eq)
+    i = 0
+
+    distancias = calcular_distancias_satelite_para_pontos(coordenadas_lat_long, h, R)
+    L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
+    f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
+
+    X_prev, p_prev = None, None
+
+    # Listas para armazenar a evolução da potência e eficiência energética
+    evolucao_potencia = []
+    evolucao_eficiencia_energetica = []
+
+    while True:
+        # Algoritmo 2: Beam assignment
+        X, p_km, I_ki, q_km = otimizar_iterativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=10, tol=1e-1)
+
+        # Algoritmo 3: Alocação de potência
+        p_star, lambda_n = dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-1)
+
+        # Critério de parada
+        I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
+        I_d_km = calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s)
+
+        gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
+        eficiencia_energetica_atual = eta_ef(X, p_star, P_c, rho, W, gamma_km)
+
+        # Armazenando a evolução da potência e da eficiência energética
+        evolucao_potencia.append(p_star.copy())
+        evolucao_eficiencia_energetica.append(eficiencia_energetica_atual)
+
+        if i > 0 and abs(eficiencia_energetica_atual - eta_ef(X_prev, p_prev, P_c, rho, W, gamma_km)) < epsilon:
+            break
+
+        # Atualização para a próxima iteração
+        p_0 = p_star
+        X_prev, p_prev = X, p_star
+        i += 1
+
+    return p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
+
+
+
+p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-1)
+
+# Gráfico de evolução da potência de cada feixe
+plt.figure(figsize=(10, 6))
+for m in range(len(evolucao_potencia[0])):
+    plt.plot(range(len(evolucao_potencia)), [p[m] for p in evolucao_potencia], label=f'Feixe {m+1}')
+plt.title('Evolução da Potência de Cada Feixe')
+plt.xlabel('Iteração')
+plt.ylabel('Potência (W)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Gráfico de evolução da eficiência energética
+plt.figure(figsize=(10, 6))
+plt.plot(range(len(evolucao_eficiencia_energetica)), evolucao_eficiencia_energetica)
+plt.title('Evolução da Eficiência Energética')
+plt.xlabel('Iteração')
+plt.ylabel('Eficiência Energética (bits/Joule)')
+plt.grid(True)
+plt.show()
