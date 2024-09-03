@@ -20,14 +20,16 @@ micro = -2.6                # Parâmetro de desvanecimento da chuva em dB*
 sigma =  1.6                # Parâmetro de desvanecimento da chuva em dB*
 N_0 = 10**(-174/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 2                       # Número de feixes
-g_t = 10**(52.1/10)         # Ganho da antena do satélite em W
-g_s = 10**(5/10)            # Lóbulo lateral da antena de satélite em dB
-g_ru = [10**(10/10), 10**(11/10), 10**(12/10),
+g_t = (10**(52.1/10))         # Ganho da antena do satélite em dB p W
+g_s = (10**(5/10))          # Lóbulo lateral da antena de satélite em dB p W
+g_ru = [10**(10/10),
+        10**(11/10),
+        10**(12/10),
         10**(13/10),
         10**(14/10),
-        10**(15/10)]        # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 1 em dB
+        10**(15/10)]        # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 1 em dB p W
 
-g_b = 10**(5/10)            # Ganho da estação de base em w
+g_b = 10**(5/10)           # Ganho da estação de base em dB p w
 P_f = 10**(10/10)           # Potência máxima transmitida em w
 P_r = np.full(M, 10**(-111/10))         # Potência de interferência admissível em w
 P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
@@ -216,20 +218,22 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
     I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M)
 
 # Definição das restrições usando lambda
-    constraints = [{'type': 'eq', 'fun': lambda p_0: p_0[0] - 10},  # Restrição de igualdade para fixar o primeiro usuário em 10W
-                   {'type': 'ineq', 'fun': lambda p_0: P_T - sum(p_0)},
-                   {'type': 'ineq', 'fun': lambda p_0: P_f - np.array(p_0)},
-                   {'type': 'ineq', 'fun': lambda p_0: sum(p_0) - (P_r / (g_s * g_b * L_b))},
-                   {'type': 'ineq', 'fun': lambda p_0: np.array(p_0)}]
+    constraints = [
+        {'type': 'eq', 'fun': lambda p_0: p_0[0] - 10},  # Fixar o primeiro usuário em 10W
+        {'type': 'ineq', 'fun': lambda p_0: P_T - sum(p_0)},  # Limite superior total de potência
+        {'type': 'ineq', 'fun': lambda p_0: P_f - np.array(p_0)},  # Limite superior para cada potência individual
+        {'type': 'ineq', 'fun': lambda p_0: sum(p_0) - (P_r[0] / (g_s * g_b * L_b)).sum()}  # Limite inferior para a soma das potências
+        ]
 
 
     result = minimize(
-        lambda p_0: objetivo_dinkelbach(p_0, p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, F_c, v, c, phi_k_list, usuarios, M),
+        objetivo_dinkelbach,
         p_0,
+        args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, F_c, v, c, phi_k_list, usuarios, M),
         constraints=constraints,
         method='SLSQP',
-        bounds=[(0, P_T) for _ in p_0],  # Define limites inferiores e superiores positivos
-        options={'disp': True}  # Exibe informações sobre o processo de otimização
+        bounds=[(p_e[0], P_T) for _ in p_0],
+        options={'disp': True}  # Define limites inferiores e superiores positivos
     )
     return result
 
@@ -332,8 +336,7 @@ def calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0):
 def otimizar_X(q_km, M):
     # Convertendo o problema de maximização para minimização
     cost_matrix = -q_km
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)  
     X = np.zeros((M, M))
     X[row_ind, col_ind] = 1
     return X
@@ -479,6 +482,24 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
     evolucao_potencia = []
     evolucao_eficiencia_energetica = []
 
+    X_prev, p_prev = None, None
+
+        # Função para imprimir os valores iniciais e verificar restrições
+    def imprimir_verificacao_inicial(p_0, P_T, P_f, P_r, g_s, g_b, L_b):
+        print("Valores iniciais de p_0:", p_0)
+        print("Soma de p_0:", sum(p_0))
+        print("Limite superior de potência total (P_T):", P_T)
+        print("Limite superior para cada potência individual (P_f):", P_f)
+        print("Limite inferior para soma de potências:", p_e)
+        print("Verificação de cada restrição:")
+        print("1. p_0[0] == 10:", p_0[0] == 10)
+        print("2. sum(p_0) <= P_T:", sum(p_0) <= P_T)
+        print("3. Todos p_0 <= P_f:", all(p <= P_f for p in p_0))
+        print("4. sum(p_0) >= (P_r / (g_s * g_b * L_b)):", sum(p_0) >= p_e)
+
+    p_0_inicial = [10] + [1] * (len(p_0) - 1)  # Ajuste inicial de p_0 conforme necessário
+    imprimir_verificacao_inicial(p_0_inicial, P_T, P_f, P_r, g_s, g_b, L_b)
+
     while True:
         # Algoritmo 2: Beam assignment
         X, p_km, I_ki, q_km = otimizar_iterativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=20, tol=1e-5)
@@ -504,8 +525,11 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
         # Atualização para a próxima iteração
         p_0 = p_star
         i += 1
-
+    
     return p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
+
+
+
 
 # Executando o algoritmo 1 com os valores definidos
 p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-5)

@@ -11,7 +11,7 @@ from scipy.optimize import linear_sum_assignment
 # Parâmetros
 N = 1                       # Número de niveis de camada hexagonais
 n =  7                      # Número de celulas hexagonais
-num_usuario_por_celula = 1
+num_usuario_por_celula = 2
 usuarios = num_usuario_por_celula * n
 c = 299792458               # Velocidade da luz no vácuo em m/s
 h = 780                     # Altitude Orbital em km
@@ -618,15 +618,11 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         # Restrição: a soma das potências dos feixes ativos deve ser maior ou igual à potência recebida mínima
         return (P_r / (g_s * g_b * L_b)) - sum(p_0)
     
-    def constraint_positive_power(p_0):
-        # Restrição: todas as potências devem ser maiores que zero
-        return - p_0
 
     # Definindo as restrições do problema de otimização
     constraints = [{'type': 'ineq', 'fun': constraint_total_power},
                    {'type': 'ineq', 'fun': constraint_individual_power},
                    {'type': 'ineq', 'fun': constraint_received_power},
-                   {'type': 'ineq', 'fun': constraint_positive_power}
                    ]
 
     # Resolve o problema de otimização usando a função objetivo de Dinkelbach
@@ -636,7 +632,6 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, M),
         constraints=constraints,
         method='SLSQP',
-        #method='L-BFGS-B',
         bounds=[(0, P_T) for _ in p_0]  # Define limites inferiores e superiores positivos
     )
     return result

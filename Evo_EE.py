@@ -626,7 +626,6 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
     constraints = [{'type': 'ineq', 'fun': constraint_total_power},
                    {'type': 'ineq', 'fun': constraint_individual_power},
                    {'type': 'ineq', 'fun': constraint_received_power},
-                   {'type': 'ineq', 'fun': constraint_positive_power}
                    ]
 
     # Resolve o problema de otimização usando a função objetivo de Dinkelbach
@@ -636,7 +635,6 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, M),
         constraints=constraints,
         method='SLSQP',
-        #method='L-BFGS-B',
         bounds=[(0, P_T) for _ in p_0]  # Define limites inferiores e superiores positivos
     )
     return result
