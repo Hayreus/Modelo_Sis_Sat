@@ -22,12 +22,14 @@ N_0 = 10**(-174/10)         # Densidade espetral do ruído em dBw/Hz para W/Hz
 M = 2                       # Número de feixes
 g_t = (10**(52.1/10))         # Ganho da antena do satélite em dB p W
 g_s = (10**(5/10))          # Lóbulo lateral da antena de satélite em dB p W
-g_ru = [10**(10/10),
+m_g_ru = [10**(10/10),
         10**(11/10),
         10**(12/10),
         10**(13/10),
         10**(14/10),
         10**(15/10)]        # Ganho da antena dos usuários, intervalo de 10 a 15 com passo de 1 em dB p W
+
+g_ru = np.random.choice(m_g_ru)
 
 g_b = 10**(5/10)           # Ganho da estação de base em dB p w
 P_f = 10**(10/10)           # Potência máxima transmitida em w
@@ -57,9 +59,8 @@ def calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M):
     L_k = np.zeros(M)
     
     for k in range(M):
-        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_k da lista
         d_m = distancias[k] * 1000  # Converte a distância de km para m
-        d_k = P_T * (g_t * selected_g_ru * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
+        d_k = P_T * (g_t * g_ru * lambda_**2) / ((4 * np.pi * d_m)**2 * L_b)
         h_k = np.random.normal(0, 1) + 1j * np.random.normal(0, 1)  # Variável aleatória complexa
         L_k[k] = d_k * np.abs(h_k)**2
     
@@ -106,8 +107,7 @@ def calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M
     I_d = np.zeros(M)
 
     for k in range(M):
-        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-        I_d[k] = p_e[k] * g_t * selected_g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
+                I_d[k] = p_e[k] * g_t * g_ru * L_k[k] * (1 - np.sinc(f_k[k] * T_s)**2)
     return I_d
 
 
@@ -117,9 +117,8 @@ def calcular_I_i(p_e, g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M):
     I_i = np.zeros(M)
     
     for k in range(M):
-        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
         sum_p_k_prime = p_e[k] * np.sum([1 if k_prime != k else 0 for k_prime in range(M)])
-        I_i[k] = g_s * selected_g_ru * L_k[k] * sum_p_k_prime
+        I_i[k] = g_s * g_ru * L_k[k] * sum_p_k_prime
         
     return I_i
 
@@ -132,8 +131,7 @@ def f1(p_e, g_t, g_ru, L_k, I_i, N_0, W, f_k, T_s, P_f, P_T, P_r, g_s, g_b, L_b,
     f1_values = np.zeros(M)
 
     for k in range(M):
-        selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-        numerator = p_e[k] * g_t * selected_g_ru * L_k[k]
+        numerator = p_e[k] * g_t * g_ru * L_k[k]
         denominator = I_i[k] + I_d[k] + N_0 * W
         f1_values[k] = np.log2(1 + numerator / denominator)
     
@@ -302,8 +300,7 @@ def calcular_eta(M, p_km, P_c, P_r, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X):
     numerator = 0
     for k in range(M):
         for m in range(M):
-            selected_g_ru = np.random.choice(g_ru)
-            numerator += W * np.log2(1 + (P_r[m] * g_t * selected_g_ru * L_k[k]) / (I_i[k] + I_d[m] + N_0 * W)) * X[k, m]
+            numerator += W * np.log2(1 + (P_r[m] * g_t * g_ru * L_k[k]) / (I_i[k] + I_d[m] + N_0 * W)) * X[k, m]
     denominator = P_c + (1 / rho) * np.sum(P_r)
     eta = numerator / denominator
     return eta
@@ -314,8 +311,7 @@ def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km, M):
     I_ki = np.zeros((M, M))
     for k in range(M):
         for m in range(M):
-            selected_g_ru = np.random.choice(g_ru)  # Seleciona aleatoriamente um valor de g_ru
-            interferencia = g_s * selected_g_ru* L_k[k] * np.sum(p_km[:, m] * (1 - x_km[:, m]))
+            interferencia = g_s * g_ru* L_k[k] * np.sum(p_km[:, m] * (1 - x_km[:, m]))
             I_ki[k, m] = interferencia
     return I_ki
 
@@ -326,8 +322,7 @@ def calcular_q_km(W, P_c, rho, p_km, g_t, g_ru, L_k, I_ki, I_d, N_0):
     denominador = P_c + (1 / rho) * np.sum(p_km)
     for k in range(M):
         for m in range(M):
-            selected_g_ru = np.random.choice(g_ru)
-            numerador = W * np.log2(1 + (p_km[k, m] * g_t * selected_g_ru * L_k[k]) / (I_ki[k, m] + I_d[m] + N_0 * W))
+            numerador = W * np.log2(1 + (p_km[k, m] * g_t * g_ru * L_k[k]) / (I_ki[k, m] + I_d[m] + N_0 * W))
             q_km[k, m] = numerador / denominador
     return q_km
 
@@ -397,9 +392,8 @@ def calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s):
     
     for k in range(K):
         for m in range(M):
-            selected_g_ru = np.random.choice(g_ru)
             sinc_term = sinc(f_k[k] * T_s)
-            I_d_km[k, m] = p_km[k, m] * g_t * selected_g_ru * L_k[k] * (1 - sinc_term**2)
+            I_d_km[k, m] = p_km[k, m] * g_t * g_ru * L_k[k] * (1 - sinc_term**2)
 
     return I_d_km
 
@@ -414,11 +408,10 @@ def calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X):
         for m in range(M):
             interference_sum = 0
             for k_prime in range(K):
-                selected_g_ru = np.random.choice(g_ru)
                 for m_prime in range(M):
                     if k_prime != k or m_prime != m:
                         interference_sum += p_km[k_prime, m_prime] * X[k_prime, m_prime]
-            I_i_km[k, m] = g_s * selected_g_ru * L_k[k] * interference_sum
+            I_i_km[k, m] = g_s * g_ru * L_k[k] * interference_sum
 
     return I_i_km
 
@@ -435,8 +428,7 @@ def calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W):
     # Calcular a SNR para cada par (k, m)
     for k in range(K):
         for m in range(M):
-            selected_g_ru = np.random.choice(g_ru)
-            numerator = p_km[k, m] * g_t * selected_g_ru * L_k[k]
+            numerator = p_km[k, m] * g_t * g_ru * L_k[k]
             denominator = I_i_km[k, m] + I_d_km[k, m] + N_0 * W
             gamma_km[k, m] = numerator / denominator
     
@@ -482,8 +474,6 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
     evolucao_potencia = []
     evolucao_eficiencia_energetica = []
 
-    X_prev, p_prev = None, None
-
         # Função para imprimir os valores iniciais e verificar restrições
     def imprimir_verificacao_inicial(p_0, P_T, P_f, P_r, g_s, g_b, L_b):
         print("Valores iniciais de p_0:", p_0)
@@ -510,13 +500,16 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
         # Critério de parada
         I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
         I_d_km = calculate_interuser_interference(p_km, g_t, g_ru, L_k, f_k, T_s)
-
         gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
         eficiencia_energetica_atual = eta_ef(X, p_star, P_c, rho, W, gamma_km)
 
         # Armazenando a evolução da potência e da eficiência energética
         evolucao_potencia.append(p_star)
         evolucao_eficiencia_energetica.append(eficiencia_energetica_atual)
+
+        # Imprimir valores de depuração
+        print(f"Iteração {i}: p_star = {p_star}")
+        print(f"Eficiência energética atual: {eficiencia_energetica_atual}")
 
         if i > 0 and np.allclose(evolucao_eficiencia_energetica[-1], evolucao_eficiencia_energetica[-2], atol=epsilon):
             print(f"Convergência atingida na iteração {i}")
