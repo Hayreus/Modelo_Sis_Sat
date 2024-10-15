@@ -100,7 +100,6 @@ p_e = calculate_pe(P_f, P_T, P_r, g_s, g_b, L_b, M)
 print(f"p_e: {p_e}")
 
 
-
 #####Eq.21 (Modelo Global)
 def calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M):
 
@@ -121,7 +120,6 @@ def calcular_I_i(p_e, g_s, g_ru, L_k, P_f, P_T, P_r, g_b, L_b, M):
         I_i[k] = g_s * g_ru * L_k[k] * sum_p_k_prime
         
     return I_i
-
 
 
 ######Eq.27 (Modelo Global)
@@ -229,7 +227,7 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         p_0,
         args=(p_e, W, g_t, g_ru, L_k, I_i, I_d, N_0, P_c, rho, lambda_n, F_c, v, c, phi_k_list, usuarios, M),
         constraints=constraints,
-        method='SLSQP',
+        method='trust-constr',
         bounds=[(p_e[0], P_T) for _ in p_0],
         options={'disp': True}  # Define limites inferiores e superiores positivos
     )
@@ -520,8 +518,6 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
         i += 1
     
     return p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
-
-
 
 
 # Executando o algoritmo 1 com os valores definidos

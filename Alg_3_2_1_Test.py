@@ -662,6 +662,8 @@ def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r,
         # Calcula F(lambda_n)
         F_lambda_n = tilde_C_p_star - lambda_n * D_p_star
 
+        n += 1
+
         # Verifica a condição de parada
         if F_lambda_n < epsilon:
             break
@@ -669,7 +671,7 @@ def dinkelbach_algorithm(p_0, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r,
         # Atualiza lambda_n e p_0 para a próxima iteração
         lambda_n = tilde_C_p_star / D_p_star
         p_0 = p_star
-        n += 1
+        
 
     return p_0, lambda_n
 
@@ -861,8 +863,6 @@ def eta_ef(X, p_km, P_c, rho, W, gamma_km):
     total_rate = np.sum(R_k)
     total_power = P_c + (1 / rho) * np.sum(p_km * X)
     return total_rate / total_power
-
-
 
 
 def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-1):
