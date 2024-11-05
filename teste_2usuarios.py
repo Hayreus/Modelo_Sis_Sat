@@ -31,7 +31,7 @@ m_g_ru = [10**(10/10),
 
 g_ru = np.random.choice(m_g_ru)
 
-g_b = 10**(5/10)           # Ganho da estação de base em dB p w
+g_b = 10**(10/10)           # Ganho da estação de base em dB p w
 P_f = 10**(10/10)           # Potência máxima transmitida em w
 P_r = np.full(M, 10**(-111/10))         # Potência de interferência admissível em w
 P_c = 10**(10/10)           # Dissipação de potência do circuito em dBw
@@ -229,7 +229,7 @@ def resolver_problema_otimizacao_dinkelbach(p_e, lambda_n, p_0, c, P_T, g_t, g_r
         constraints=constraints,
         method='trust-constr',
         bounds=[(p_e[0], P_T) for _ in p_0],
-        options={'disp': True}  # Define limites inferiores e superiores positivos
+        options={'disp': True} #Mostra informações sobre o progresso da minimização.
     )
     return result
 
@@ -336,7 +336,7 @@ def otimizar_X(q_km, M):
 
 
 ##### Função iterativa para otimização conjunta
-def otimizar_iterativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=10, tol=1e-5):
+def otimizar_interativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=10, tol=1e-5):
     L_k = calcular_L_k(c, P_T, g_t, g_ru, F_c, distancias, L_b, M)
     f_k = calcular_fk(v, F_c, c, phi_k_list, usuarios)
     I_d = calculate_I_d(p_e, g_t, g_ru, T_s, f_k, L_k, P_f, P_T, P_r, g_s, g_b, L_b, M) #Interferência Doppler
@@ -458,7 +458,7 @@ def eta_ef(X, p_km, P_c, rho, W, gamma_km):
 
 
 
-def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-5):
+def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-6):
 
     # Inicializações
     p_eq = np.min([P_f, P_T / M, np.min(P_r / (g_s * g_b * L_b * M))])
@@ -490,10 +490,10 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
 
     while True:
         # Algoritmo 2: Beam assignment
-        X, p_km, I_ki, q_km = otimizar_iterativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=20, tol=1e-5)
+        X, p_km, I_ki, q_km = otimizar_interativamente(p_e, P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, distancias, N_0, max_iter=100, tol=1e-6)
 
         # Algoritmo 3: Alocação de potência
-        p_star, lambda_n = dinkelbach_algorithm(p_0, p_e, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-5)
+        p_star, lambda_n = dinkelbach_algorithm(p_0, p_e, c, P_T, g_t, g_ru, F_c, distancias, L_b, P_f, P_r, g_s, g_b, M, T_s, v, phi_k_list, usuarios, P_c, rho, N_0, W, epsilon=1e-6)
 
         # Critério de parada
         I_i_km = calculate_intrauser_interference(p_km, g_s, g_ru, L_k, X)
@@ -501,45 +501,38 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
         gamma_km = calculate_snr(p_km, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, W)
         eficiencia_energetica_atual = eta_ef(X, p_star, P_c, rho, W, gamma_km)
 
+        if i > 0 and (evolucao_eficiencia_energetica[-1] - eficiencia_energetica_atual) < epsilon:
+            break
+        
         # Armazenando a evolução da potência e da eficiência energética
         evolucao_potencia.append(p_star)
         evolucao_eficiencia_energetica.append(eficiencia_energetica_atual)
 
-        # Imprimir valores de depuração
-        print(f"Iteração {i}: p_star = {p_star}")
-        print(f"Eficiência energética atual: {eficiencia_energetica_atual}")
-
-        if i > 0 and np.allclose(evolucao_eficiencia_energetica[-1], evolucao_eficiencia_energetica[-2], atol=epsilon):
-            print(f"Convergência atingida na iteração {i}")
-            break
-
         # Atualização para a próxima iteração
         p_0 = p_star
         i += 1
-    
+
     return p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
 
-
 # Executando o algoritmo 1 com os valores definidos
-p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-5)
+p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-6)
 
 print(f"p*:\n {p_star}")
 print(f"X*:\n {X_star}")
 
-# Gráfico de evolução da potência de cada feixe
+# Evolução da potência de cada feixe
 for m in range(len(evolucao_potencia[0])):
     plt.plot(range(len(evolucao_potencia)), [p[m] for p in evolucao_potencia], label=f'Feixe {m+1}')
-plt.title('Evolução da Potência de Cada Feixe')
 plt.xlabel('Iteração')
 plt.ylabel('Potência (W)')
 plt.legend()
 plt.grid(True)
 plt.show()
 
-# Gráfico de evolução da eficiência energética
-plt.plot(range(len(evolucao_eficiencia_energetica)), evolucao_eficiencia_energetica)
-plt.title('Evolução da Eficiência Energética')
-plt.xlabel('Iteração')
-plt.ylabel('Eficiência Energética (bits/Joule)')
+# Evolução da eficiência energética em função da potência total
+plt.plot(evolucao_eficiencia_energetica, marker='o', color='b')
+plt.xlabel("Iteração")
+plt.ylabel("Eficiência Energética")
 plt.grid(True)
+plt.title("Evolução da Eficiência Energética em Função da Potência")
 plt.show()
