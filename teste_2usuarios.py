@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.ticker import MultipleLocator
 from scipy.optimize import minimize
 from scipy.optimize import linprog
 from scipy.optimize import linear_sum_assignment
@@ -534,30 +535,30 @@ for m in range(len(evolucao_potencia[0])):
     plt.plot(range(len(evolucao_potencia)), [p[m] for p in evolucao_potencia], label=f'Feixe {m+1}')
 plt.xlabel('Iteração')
 plt.ylabel('Potência (W)')
-plt.legend()
 plt.grid(True)
+plt.legend()
 plt.show()
 
 # Evolução da eficiência energética em função da potência total
 plt.plot(evolucao_eficiencia_energetica, marker='o', color='b')
 plt.xlabel("Iteração")
 plt.ylabel("Eficiência Energética")
-plt.grid(True)
 plt.title("Evolução da Eficiência Energética em Função da Potência")
+plt.grid(True)
+plt.legend()
 plt.show()
 
 
-P_r_base = 10**(-111/10)  # Potência base muito pequena
+
 
 # Ajuste de escala para valores utilizáveis
 scaling_factors = np.linspace(0, 10, 1000)  # Escalas de 0 a 10
-scaling_adjustment = 1e11  # Fator de ajuste para corrigir magnitude
 eta_values = []
 
 # Calculando eficiência energética (eta) para diferentes escalas
 for scale in scaling_factors:
-    P_r_scaled = np.full(M, scale * P_r_base * scaling_adjustment)  # Aplicando fator de escala
-    eta = calcular_EE(M, p_km, P_c, P_r_scaled, rho, W, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, X_star)
+    P_scaled = np.full(M, scale)  # Aplicando fator de escala
+    eta = calcular_EE(M, p_km, P_c, P_scaled, rho, W, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, X_star)
  
     # Garantir que apenas valores escalares sejam adicionados
     eta_values.append(np.sum(eta) if isinstance(eta, np.ndarray) else eta)
@@ -574,6 +575,7 @@ plt.scatter(max_scale, max_eta, color='red', label=f"Máximo: ({max_scale:.2f}, 
 plt.xlabel("Fator de escala aplicado a Potência [W]")
 plt.ylabel("Eficiência Energética (\u03B7)")
 plt.title("Eficiência Energética em função da Potência")
+
 plt.grid(True)
 plt.legend()
 plt.show()
