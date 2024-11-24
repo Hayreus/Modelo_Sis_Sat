@@ -303,6 +303,15 @@ def calcular_eta(M, p_km, P_c, P_r, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X):
     eta = numerator / denominator
     return eta
 
+def calcular_EE(M, p_km, P_c, P_r, rho, W, g_t, g_ru, L_k, I_i, I_d, N_0, X):
+    numerator = 0
+    for k in range(M):
+        for m in range(M):
+            numerator += W * np.log2(1 + (P_r * g_t * g_ru * L_k[k]) / (I_i[k] + I_d[m] + N_0 * W)) * X[k, m]
+    denominator = P_c + (1 / rho) * np.sum(P_r)
+    eta = numerator / denominator
+    return eta
+
 
 # Eq.16 (Modelo Global), interferência entre feixes
 def calcular_I_ki(g_s, g_ru, L_k, p_km, x_km, M):
@@ -512,10 +521,10 @@ def algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c,
         p_0 = p_star
         i += 1
 
-    return p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
+    return I_i_km, I_d_km, p_km, p_star, X, evolucao_potencia, evolucao_eficiencia_energetica
 
 # Executando o algoritmo 1 com os valores definidos
-p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-6)
+I_i_km, I_d_km, p_km, p_star, X_star, evolucao_potencia, evolucao_eficiencia_energetica = algoritmo_1(P_T, P_f, P_r, g_s, g_b, L_b, M, P_c, rho, W, g_t, g_ru, c, F_c, T_s, v, phi_k_list, usuarios, N_0, epsilon=1e-6)
 
 print(f"p*:\n {p_star}")
 print(f"X*:\n {X_star}")
@@ -535,4 +544,36 @@ plt.xlabel("Iteração")
 plt.ylabel("Eficiência Energética")
 plt.grid(True)
 plt.title("Evolução da Eficiência Energética em Função da Potência")
+plt.show()
+
+
+P_r_base = 10**(-111/10)  # Potência base muito pequena
+
+# Ajuste de escala para valores utilizáveis
+scaling_factors = np.linspace(0, 10, 1000)  # Escalas de 0 a 10
+scaling_adjustment = 1e11  # Fator de ajuste para corrigir magnitude
+eta_values = []
+
+# Calculando eficiência energética (eta) para diferentes escalas
+for scale in scaling_factors:
+    P_r_scaled = np.full(M, scale * P_r_base * scaling_adjustment)  # Aplicando fator de escala
+    eta = calcular_EE(M, p_km, P_c, P_r_scaled, rho, W, g_t, g_ru, L_k, I_i_km, I_d_km, N_0, X_star)
+ 
+    # Garantir que apenas valores escalares sejam adicionados
+    eta_values.append(np.sum(eta) if isinstance(eta, np.ndarray) else eta)
+
+# Identificar o ponto máximo
+max_eta = max(eta_values)
+max_index = eta_values.index(max_eta)
+max_scale = scaling_factors[max_index]
+
+# Plot do resultado
+plt.figure(figsize=(8, 6))
+plt.plot(scaling_factors, eta_values, color='blue', label="Eficiência Energética (\u03B7)")
+plt.scatter(max_scale, max_eta, color='red', label=f"Máximo: ({max_scale:.2f}, {max_eta:.2f})")
+plt.xlabel("Fator de escala aplicado a Potência [W]")
+plt.ylabel("Eficiência Energética (\u03B7)")
+plt.title("Eficiência Energética em função da Potência")
+plt.grid(True)
+plt.legend()
 plt.show()
